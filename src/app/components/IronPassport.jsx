@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import supabase from "../../lib/supabase";
 
 const API = "https://ironpassport.tylerjyoung5.workers.dev";
 
@@ -554,7 +555,7 @@ function ResultsList({ gyms, tier, stayingAt, onSignUp }) {
 }
 
 // ─── Gym Finder Flow ──────────────────────────────────────────────────────────
-function GymFinder({ tier, searchCount, onSearch, onBack, onSignUp, onProModal }) {
+function GymFinder({ tier, searchCount, userEmail, onSearch, onBack, onSignUp, onProModal }) {
   const [destination, setDestination] = useState("");
   const [stayingAt,   setStayingAt]   = useState("");
   const [tripType,    setTripType]    = useState("work");
@@ -581,13 +582,43 @@ ${locCtx}
 SCORING (0-100 per criterion):
 ${GYM_CRITERIA.map(c => `- ${c.key} (${Math.round(c.weight * 100)}%)`).join("\n")}
 Return JSON array of exactly 6:
-{"name":string,"type":string,"address":string,"neighborhood":string,"whyRecommended":string,"description":string,"scores":{"equipment":0-100,"cleanliness":0-100,"amenities":0-100,"staff":0-100,"atmosphere":0-100,"value":0-100,"recovery":0-100,"classes":0-100},"dayPassAvailable":bool,"dayPassPrice":"$XX"|null,"weekPassAvailable":bool,"weekPassPrice":"$XX"|null,"passNotes":string|null,"tags":[3-6 strings],"highlights":[{"icon":emoji,"label":string,"value":string}x4-5]${stayingAt ? `,"travel":{"walkingTime":"X min"|null,"transitTime":"X min"|null,"transitCost":"$X"|null,"uberTime":"X-X min"|null,"uberCost":"$X-XX"|null}` : ""}}
-Use real gym names. Differentiate scores. Respond ONLY with valid JSON array.`;
+{"name":string,"type":string,"address":string,"neighborhood":string,"city":string,"country":string,"whyRecommended":string,"description":string,"scores":{"equipment":0-100,"cleanliness":0-100,"amenities":0-100,"staff":0-100,"atmosphere":0-100,"value":0-100,"recovery":0-100,"classes":0-100},"dayPassAvailable":bool,"dayPassPrice":"$XX"|null,"weekPassAvailable":bool,"weekPassPrice":"$XX"|null,"passNotes":string|null,"contactPhone":"(XXX) XXX-XXXX"|null,"contactEmail":"info@gym.com"|null,"contactWebsite":"https://gym.com"|null,"contactInstagram":"@handle"|null,"tags":[3-6 strings],"highlights":[{"icon":emoji,"label":string,"value":string}x4-5]${stayingAt ? `,"travel":{"walkingTime":"X min"|null,"transitTime":"X min"|null,"transitCost":"$X"|null,"uberTime":"X-X min"|null,"uberCost":"$X-XX"|null}` : ""}}
+Use real gym names. Include real contact info where known. Differentiate scores. Respond ONLY with valid JSON array.`;
     try {
       const res = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 5000, system: sys, messages: [{ role: "user", content: `Best gyms: ${dest}` }] }) });
       const data = await res.json();
       const text = data.content?.map(b => b.text || "").join("") || "";
-      setGyms(JSON.parse(text.replace(/```json|```/g, "").trim()));
+      const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
+      setGyms(parsed);
+      // Log search + gyms to Supabase (fire-and-forget)
+      (async () => {
+        try {
+          const { data: sRow } = await supabase.from("searches").insert({
+            user_email: userEmail || null,
+            search_type: "finder",
+            query: dest,
+            trip_type: trip,
+            staying_at: stayingAt || null,
+            tier_at_time: tier,
+            result_count: parsed.length,
+          }).select("id").single();
+          if (!sRow) return;
+          for (let r = 0; r < parsed.length; r++) {
+            const g = parsed[r];
+            const { data: gRow } = await supabase.from("gyms").upsert({
+              name: g.name, type: g.type, address: g.address,
+              neighborhood: g.neighborhood || null, city: g.city || dest, country: g.country || null,
+              description: g.description || g.whyRecommended || null,
+              day_pass_price: g.dayPassPrice || null, week_pass_price: g.weekPassPrice || null,
+              pass_notes: g.passNotes || null,
+              contact_phone: g.contactPhone || null, contact_email: g.contactEmail || null,
+              contact_website: g.contactWebsite || null, contact_instagram: g.contactInstagram || null,
+              scores: g.scores || null, updated_at: new Date().toISOString(),
+            }, { onConflict: "name,address" }).select("id").single();
+            if (gRow) await supabase.from("search_gyms").insert({ search_id: sRow.id, gym_id: gRow.id, rank: r + 1 });
+          }
+        } catch {}
+      })();
     } catch { setError("Couldn't load gyms. Please try again."); }
     finally { setLoading(false); }
   }
@@ -665,7 +696,7 @@ Use real gym names. Differentiate scores. Respond ONLY with valid JSON array.`;
 }
 
 // ─── Destination Discovery Flow ───────────────────────────────────────────────
-function DestDiscovery({ tier, searchCount, onSearch, onBack, onSignUp, onProModal }) {
+function DestDiscovery({ tier, searchCount, userEmail, onSearch, onBack, onSignUp, onProModal }) {
   const [query,        setQuery]        = useState("");
   const [tripType,     setTripType]     = useState("adventure");
   const [destinations, setDestinations] = useState([]);
@@ -691,14 +722,44 @@ SCORING:
 ${GYM_CRITERIA.map(c => `- ${c.key} (${Math.round(c.weight * 100)}%)`).join("\n")}
 Combined = 50% destination + 50% top gym score.
 Return JSON array of 6 destinations each with 3 gyms:
-{"city":string,"country":string,"region":string,"tagline":string,"destinationScore":0-100,"highlights":[{"icon":emoji,"label":string,"value":string}x4],"gyms":[{"name":string,"type":string,"address":string,"whyRecommended":string,"scores":{"equipment":0-100,"cleanliness":0-100,"amenities":0-100,"staff":0-100,"atmosphere":0-100,"value":0-100,"recovery":0-100,"classes":0-100},"dayPassAvailable":bool,"dayPassPrice":"$XX"|null,"weekPassAvailable":bool,"weekPassPrice":"$XX"|null,"passNotes":string|null,"tags":[3-5]}x3]}
-Use real gym names. Differentiate scores. Sort best to worst. Respond ONLY with valid JSON array.`;
+{"city":string,"country":string,"region":string,"tagline":string,"destinationScore":0-100,"highlights":[{"icon":emoji,"label":string,"value":string}x4],"gyms":[{"name":string,"type":string,"address":string,"whyRecommended":string,"scores":{"equipment":0-100,"cleanliness":0-100,"amenities":0-100,"staff":0-100,"atmosphere":0-100,"value":0-100,"recovery":0-100,"classes":0-100},"dayPassAvailable":bool,"dayPassPrice":"$XX"|null,"weekPassAvailable":bool,"weekPassPrice":"$XX"|null,"passNotes":string|null,"contactPhone":"(XXX) XXX-XXXX"|null,"contactEmail":"info@gym.com"|null,"contactWebsite":"https://gym.com"|null,"contactInstagram":"@handle"|null,"tags":[3-5]}x3]}
+Use real gym names. Include real contact info where known. Differentiate scores. Sort best to worst. Respond ONLY with valid JSON array.`;
     try {
       const res = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 7000, system: sys, messages: [{ role: "user", content: q }] }) });
       const data = await res.json();
       const text = data.content?.map(b => b.text || "").join("") || "";
       const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
       setDestinations(parsed.map(d => ({ ...d, topGym: d.gyms?.[0] })));
+      // Log search + gyms to Supabase (fire-and-forget)
+      (async () => {
+        try {
+          const allGyms = parsed.flatMap(d => (d.gyms || []).map(g => ({ ...g, city: d.city, country: d.country })));
+          const { data: sRow } = await supabase.from("searches").insert({
+            user_email: userEmail || null,
+            search_type: "discovery",
+            query: q,
+            trip_type: trip,
+            staying_at: null,
+            tier_at_time: tier,
+            result_count: allGyms.length,
+          }).select("id").single();
+          if (!sRow) return;
+          for (let r = 0; r < allGyms.length; r++) {
+            const g = allGyms[r];
+            const { data: gRow } = await supabase.from("gyms").upsert({
+              name: g.name, type: g.type, address: g.address,
+              neighborhood: null, city: g.city || null, country: g.country || null,
+              description: g.whyRecommended || null,
+              day_pass_price: g.dayPassPrice || null, week_pass_price: g.weekPassPrice || null,
+              pass_notes: g.passNotes || null,
+              contact_phone: g.contactPhone || null, contact_email: g.contactEmail || null,
+              contact_website: g.contactWebsite || null, contact_instagram: g.contactInstagram || null,
+              scores: g.scores || null, updated_at: new Date().toISOString(),
+            }, { onConflict: "name,address" }).select("id").single();
+            if (gRow) await supabase.from("search_gyms").insert({ search_id: sRow.id, gym_id: gRow.id, rank: r + 1 });
+          }
+        } catch {}
+      })();
     } catch { setError("Couldn't load destinations. Please try again."); }
     finally { setLoading(false); }
   }
@@ -907,6 +968,7 @@ export default function App() {
     localStorage.setItem("ip_tier", "free");
     localStorage.setItem("ip_email", email);
     localStorage.setItem("ip_search_count", "0");
+    supabase.from("users").upsert({ email, tier: "free", newsletter: true }, { onConflict: "email" }).then();
   }
 
   async function handleProUpgrade(email) {
@@ -915,6 +977,7 @@ export default function App() {
     localStorage.setItem("ip_tier", "pro");
     localStorage.setItem("ip_email", em);
     localStorage.setItem("ip_search_count", "0");
+    supabase.from("users").upsert({ email: em, tier: "pro" }, { onConflict: "email" }).then();
   }
 
   async function handleSignOut() {
@@ -1077,6 +1140,7 @@ export default function App() {
           <div className="fade-in" style={{ paddingTop: 28 }}>
             <GymFinder
               tier={tier} searchCount={searchCount}
+              userEmail={userEmail}
               onSearch={incrementSearch}
               onBack={() => setMode(null)}
               onSignUp={() => setShowSignUp(true)}
@@ -1089,6 +1153,7 @@ export default function App() {
           <div className="fade-in" style={{ paddingTop: 28 }}>
             <DestDiscovery
               tier={tier} searchCount={searchCount}
+              userEmail={userEmail}
               onSearch={incrementSearch}
               onBack={() => setMode(null)}
               onSignUp={() => setShowSignUp(true)}
