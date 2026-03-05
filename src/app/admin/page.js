@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 import { useState, useEffect } from "react";
-import supabase from "../../lib/supabase";
+import getSupabase from "../../lib/supabase";
 
 const PER_PAGE = 50;
 const GOLD = "#c8a84b";
@@ -70,12 +70,12 @@ export default function AdminPage() {
     if (!authorized) return;
     (async () => {
       const [u, s, g] = await Promise.all([
-        supabase.from("users").select("*", { count: "exact", head: true }),
-        supabase.from("searches").select("*", { count: "exact", head: true }),
-        supabase.from("gyms").select("*", { count: "exact", head: true }),
+        getSupabase().from("users").select("*", { count: "exact", head: true }),
+        getSupabase().from("searches").select("*", { count: "exact", head: true }),
+        getSupabase().from("gyms").select("*", { count: "exact", head: true }),
       ]);
       const today = new Date().toISOString().slice(0, 10);
-      const ts = await supabase.from("searches").select("*", { count: "exact", head: true }).gte("created_at", today);
+      const ts = await getSupabase().from("searches").select("*", { count: "exact", head: true }).gte("created_at", today);
       setStats({ users: u.count, searches: s.count, gyms: g.count, todaySearches: ts.count });
     })();
   }, [authorized]);
@@ -85,9 +85,9 @@ export default function AdminPage() {
     if (!authorized) return;
     if (tab === "users") {
       (async () => {
-        const { count } = await supabase.from("users").select("*", { count: "exact", head: true });
+        const { count } = await getSupabase().from("users").select("*", { count: "exact", head: true });
         setUsersCount(count || 0);
-        const { data } = await supabase.from("users").select("*").order("created_at", { ascending: false }).range((usersPage - 1) * PER_PAGE, usersPage * PER_PAGE - 1);
+        const { data } = await getSupabase().from("users").select("*").order("created_at", { ascending: false }).range((usersPage - 1) * PER_PAGE, usersPage * PER_PAGE - 1);
         setUsers(data || []);
       })();
     }
@@ -97,9 +97,9 @@ export default function AdminPage() {
     if (!authorized) return;
     if (tab === "searches") {
       (async () => {
-        const { count } = await supabase.from("searches").select("*", { count: "exact", head: true });
+        const { count } = await getSupabase().from("searches").select("*", { count: "exact", head: true });
         setSearchesCount(count || 0);
-        const { data } = await supabase.from("searches").select("*").order("created_at", { ascending: false }).range((searchesPage - 1) * PER_PAGE, searchesPage * PER_PAGE - 1);
+        const { data } = await getSupabase().from("searches").select("*").order("created_at", { ascending: false }).range((searchesPage - 1) * PER_PAGE, searchesPage * PER_PAGE - 1);
         setSearches(data || []);
       })();
     }
@@ -109,9 +109,9 @@ export default function AdminPage() {
     if (!authorized) return;
     if (tab === "gyms") {
       (async () => {
-        const { count } = await supabase.from("gyms").select("*", { count: "exact", head: true });
+        const { count } = await getSupabase().from("gyms").select("*", { count: "exact", head: true });
         setGymsCount(count || 0);
-        const { data } = await supabase.from("gyms").select("*").order("created_at", { ascending: false }).range((gymsPage - 1) * PER_PAGE, gymsPage * PER_PAGE - 1);
+        const { data } = await getSupabase().from("gyms").select("*").order("created_at", { ascending: false }).range((gymsPage - 1) * PER_PAGE, gymsPage * PER_PAGE - 1);
         setGyms(data || []);
       })();
     }

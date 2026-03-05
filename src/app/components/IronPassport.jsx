@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import supabase from "../../lib/supabase";
+import getSupabase from "../../lib/supabase";
 
 const API = "https://ironpassport.tylerjyoung5.workers.dev";
 
@@ -593,7 +593,7 @@ Use real gym names. Include real contact info where known. Differentiate scores.
       // Log search + gyms to Supabase (fire-and-forget)
       (async () => {
         try {
-          const { data: sRow } = await supabase.from("searches").insert({
+          const { data: sRow } = await getSupabase()?.from("searches").insert({
             user_email: userEmail || null,
             search_type: "finder",
             query: dest,
@@ -605,7 +605,7 @@ Use real gym names. Include real contact info where known. Differentiate scores.
           if (!sRow) return;
           for (let r = 0; r < parsed.length; r++) {
             const g = parsed[r];
-            const { data: gRow } = await supabase.from("gyms").upsert({
+            const { data: gRow } = await getSupabase()?.from("gyms").upsert({
               name: g.name, type: g.type, address: g.address,
               neighborhood: g.neighborhood || null, city: g.city || dest, country: g.country || null,
               description: g.description || g.whyRecommended || null,
@@ -615,7 +615,7 @@ Use real gym names. Include real contact info where known. Differentiate scores.
               contact_website: g.contactWebsite || null, contact_instagram: g.contactInstagram || null,
               scores: g.scores || null, updated_at: new Date().toISOString(),
             }, { onConflict: "name,address" }).select("id").single();
-            if (gRow) await supabase.from("search_gyms").insert({ search_id: sRow.id, gym_id: gRow.id, rank: r + 1 });
+            if (gRow) await getSupabase()?.from("search_gyms").insert({ search_id: sRow.id, gym_id: gRow.id, rank: r + 1 });
           }
         } catch {}
       })();
@@ -734,7 +734,7 @@ Use real gym names. Include real contact info where known. Differentiate scores.
       (async () => {
         try {
           const allGyms = parsed.flatMap(d => (d.gyms || []).map(g => ({ ...g, city: d.city, country: d.country })));
-          const { data: sRow } = await supabase.from("searches").insert({
+          const { data: sRow } = await getSupabase()?.from("searches").insert({
             user_email: userEmail || null,
             search_type: "discovery",
             query: q,
@@ -746,7 +746,7 @@ Use real gym names. Include real contact info where known. Differentiate scores.
           if (!sRow) return;
           for (let r = 0; r < allGyms.length; r++) {
             const g = allGyms[r];
-            const { data: gRow } = await supabase.from("gyms").upsert({
+            const { data: gRow } = await getSupabase()?.from("gyms").upsert({
               name: g.name, type: g.type, address: g.address,
               neighborhood: null, city: g.city || null, country: g.country || null,
               description: g.whyRecommended || null,
@@ -756,7 +756,7 @@ Use real gym names. Include real contact info where known. Differentiate scores.
               contact_website: g.contactWebsite || null, contact_instagram: g.contactInstagram || null,
               scores: g.scores || null, updated_at: new Date().toISOString(),
             }, { onConflict: "name,address" }).select("id").single();
-            if (gRow) await supabase.from("search_gyms").insert({ search_id: sRow.id, gym_id: gRow.id, rank: r + 1 });
+            if (gRow) await getSupabase()?.from("search_gyms").insert({ search_id: sRow.id, gym_id: gRow.id, rank: r + 1 });
           }
         } catch {}
       })();
@@ -968,7 +968,7 @@ export default function App() {
     localStorage.setItem("ip_tier", "free");
     localStorage.setItem("ip_email", email);
     localStorage.setItem("ip_search_count", "0");
-    supabase.from("users").upsert({ email, tier: "free", newsletter: true }, { onConflict: "email" }).then();
+    getSupabase()?.from("users").upsert({ email, tier: "free", newsletter: true }, { onConflict: "email" }).then();
   }
 
   async function handleProUpgrade(email) {
@@ -977,7 +977,7 @@ export default function App() {
     localStorage.setItem("ip_tier", "pro");
     localStorage.setItem("ip_email", em);
     localStorage.setItem("ip_search_count", "0");
-    supabase.from("users").upsert({ email: em, tier: "pro" }, { onConflict: "email" }).then();
+    getSupabase()?.from("users").upsert({ email: em, tier: "pro" }, { onConflict: "email" }).then();
   }
 
   async function handleSignOut() {
