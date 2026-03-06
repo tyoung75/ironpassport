@@ -199,7 +199,7 @@ function StarRating({ value = 0, onChange, size = 20 }) {
 }
 
 // ─── Gym Detail Drawer ────────────────────────────────────────────────────────
-function GymDrawer({ gym, rank, stayingAt, onClose }) {
+function GymDrawer({ gym, rank, stayingAt, onClose, onSetHomeGym, isHomeGym }) {
   if (!gym) return null;
   const score = calcScore(gym.scores);
   return (
@@ -292,6 +292,19 @@ function GymDrawer({ gym, rank, stayingAt, onClose }) {
                 ))}
               </div>
             </div>
+          )}
+          {onSetHomeGym && (
+            isHomeGym ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(200,168,75,0.08)", border: "1px solid rgba(200,168,75,0.25)", borderRadius: 10, padding: "10px 14px" }}>
+                <span style={{ fontSize: 16 }}>🏠</span>
+                <span style={{ fontSize: 12, color: "#c8a84b", fontWeight: 600 }}>This is your Home Gym</span>
+              </div>
+            ) : (
+              <button onClick={() => { onSetHomeGym(gym); onClose(); }} style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 14px", cursor: "pointer", width: "100%", fontFamily: "inherit" }}>
+                <span style={{ fontSize: 14 }}>🏠</span>
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>Set as Home Gym</span>
+              </button>
+            )
           )}
         </div>
       </div>
@@ -579,7 +592,7 @@ function ProModal({ onClose, onUpgrade }) {
 }
 
 // ─── Result list (handles blurred #1 vs visible 2-6) ─────────────────────────
-function ResultsList({ gyms, tier, stayingAt, onSignUp }) {
+function ResultsList({ gyms, tier, stayingAt, onSignUp, onSetHomeGym, homeGym }) {
   const [selected, setSelected] = useState(null);
   const [selRank,  setSelRank]  = useState(null);
   const topLocked = TIERS[tier].topLocked;
@@ -607,13 +620,13 @@ function ResultsList({ gyms, tier, stayingAt, onSignUp }) {
         ))}
       </div>
 
-      <GymDrawer gym={selected} rank={selRank} stayingAt={stayingAt} onClose={() => setSelected(null)} />
+      <GymDrawer gym={selected} rank={selRank} stayingAt={stayingAt} onClose={() => setSelected(null)} onSetHomeGym={onSetHomeGym} isHomeGym={homeGym && selected && homeGym.name === selected.name && homeGym.address === selected.address} />
     </div>
   );
 }
 
 // ─── Gym Finder Flow ──────────────────────────────────────────────────────────
-function GymFinder({ tier, searchCount, userEmail, onSearch, onBack, onSignUp, onProModal, homeGym }) {
+function GymFinder({ tier, searchCount, userEmail, onSearch, onBack, onSignUp, onProModal, homeGym, onSetHomeGym }) {
   const [destination, setDestination] = useState("");
   const [stayingAt,   setStayingAt]   = useState("");
   const [tripType,    setTripType]    = useState("work");
@@ -775,7 +788,7 @@ Use real gym names. Include real contact info where known. Differentiate scores.
       )}
       {error && <div style={{ background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.16)", borderRadius: 9, padding: "13px 16px", color: "#f87171", fontSize: 12 }}>{error}</div>}
       {!loading && gyms.length > 0 && (
-        <ResultsList gyms={gyms} tier={tier} stayingAt={stayingAt} onSignUp={onSignUp} />
+        <ResultsList gyms={gyms} tier={tier} stayingAt={stayingAt} onSignUp={onSignUp} onSetHomeGym={onSetHomeGym} homeGym={homeGym} />
       )}
     </div>
   );
@@ -1072,7 +1085,7 @@ function LocationPrompt({ onLocation }) {
     <div style={{ textAlign: "center", padding: "36px 0" }}>
       <div style={{ fontSize: 36, marginBottom: 14 }}>📍</div>
       <div style={{ fontFamily: "var(--serif)", fontSize: 22, color: "#f0ebe0", marginBottom: 8 }}>Where are you?</div>
-      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>We'll find 10 nearby gyms to battle head-to-head.</p>
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>We'll find 10 nearby gyms to compare head-to-head.</p>
       {geoStatus !== "denied" && (
         <button onClick={tryGeo} disabled={geoStatus === "loading"} style={{ background: "linear-gradient(135deg,#f97316,#c2410c)", border: "none", borderRadius: 10, padding: "12px 28px", color: "#fff", fontSize: 12, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", cursor: "pointer", fontFamily: "inherit", marginBottom: 16 }}>
           {geoStatus === "loading" ? "Locating…" : "Use My Location"}
@@ -1155,7 +1168,7 @@ function BattleResults({ votes, gyms, onBack, onAgain, tier, onSignUp }) {
     <div className="fade-in">
       <div style={{ textAlign: "center", marginBottom: 28 }}>
         <div style={{ fontSize: 36, marginBottom: 10 }}>🏆</div>
-        <div style={{ fontFamily: "var(--serif)", fontSize: 26, color: "#f0ebe0", marginBottom: 6 }}>Battle Results</div>
+        <div style={{ fontFamily: "var(--serif)", fontSize: 26, color: "#f0ebe0", marginBottom: 6 }}>Compare Results</div>
         <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>Your personal gym ranking based on {votes.filter(v => v.winner).length} head-to-head votes</p>
       </div>
       <div style={{ display: "grid", gap: 8, marginBottom: 28 }}>
@@ -1189,7 +1202,7 @@ function BattleResults({ votes, gyms, onBack, onAgain, tier, onSignUp }) {
         </div>
       )}
       <div style={{ display: "flex", gap: 10 }}>
-        <button onClick={onAgain} style={{ flex: 1, background: "linear-gradient(135deg,#f97316,#c2410c)", border: "none", borderRadius: 9, padding: "12px", color: "#fff", fontSize: 12, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", cursor: "pointer", fontFamily: "inherit" }}>Battle Again</button>
+        <button onClick={onAgain} style={{ flex: 1, background: "linear-gradient(135deg,#f97316,#c2410c)", border: "none", borderRadius: 9, padding: "12px", color: "#fff", fontSize: 12, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", cursor: "pointer", fontFamily: "inherit" }}>Compare Again</button>
         <button onClick={onBack} style={{ flex: 1, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 9, padding: "12px", color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase", cursor: "pointer", fontFamily: "inherit" }}>Back Home</button>
       </div>
     </div>
@@ -1312,9 +1325,9 @@ Use real gym names. Differentiate scores. Respond ONLY with valid JSON array.`;
       <button onClick={onBack} className="back-btn">← Back</button>
       {phase !== "results" && (
         <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 10, color: "#f97316", letterSpacing: 4, textTransform: "uppercase", marginBottom: 10 }}>⚔️ Gym Battle</div>
-          {phase === "locate" && <h2 style={{ fontFamily: "var(--serif)", fontSize: "clamp(26px,4vw,36px)", fontWeight: 400, color: "#f0ebe0", lineHeight: 1.15, marginBottom: 8 }}>Pick your<br />champion gym</h2>}
-          {phase === "locate" && <p style={{ fontSize: 13, color: "rgba(255,255,255,0.38)", lineHeight: 1.8 }}>10 nearby gyms go head-to-head. You pick the winner. 10 rounds.</p>}
+          <div style={{ fontSize: 10, color: "#f97316", letterSpacing: 4, textTransform: "uppercase", marginBottom: 10 }}>⚖️ Gym Compare</div>
+          {phase === "locate" && <h2 style={{ fontFamily: "var(--serif)", fontSize: "clamp(26px,4vw,36px)", fontWeight: 400, color: "#f0ebe0", lineHeight: 1.15, marginBottom: 8 }}>Find your<br />top gym</h2>}
+          {phase === "locate" && <p style={{ fontSize: 13, color: "rgba(255,255,255,0.38)", lineHeight: 1.8 }}>10 nearby gyms go head-to-head. Pick your favorite each round. 10 rounds.</p>}
         </div>
       )}
       {phase === "locate" && <LocationPrompt onLocation={loadGyms} />}
@@ -1620,10 +1633,11 @@ function GymPassport({ tier, userEmail, onBack, homeGym, onSetHomeGym, onClearHo
   const [stamps, setStamps]             = useState([]);
   const [gymMap, setGymMap]             = useState({});
   const [loading, setLoading]           = useState(true);
-  const [showSearch, setShowSearch]     = useState(false);
-  const [addGym, setAddGym]             = useState(null);
-  const [selectedStamp, setSelectedStamp] = useState(null);
-  const [filter, setFilter]             = useState("");
+  const [showSearch, setShowSearch]           = useState(false);
+  const [showHomeGymSearch, setShowHomeGymSearch] = useState(false);
+  const [addGym, setAddGym]                 = useState(null);
+  const [selectedStamp, setSelectedStamp]   = useState(null);
+  const [filter, setFilter]                 = useState("");
 
   useEffect(() => { loadStamps(); }, [userEmail]);
 
@@ -1677,7 +1691,7 @@ function GymPassport({ tier, userEmail, onBack, homeGym, onSetHomeGym, onClearHo
         <h2 style={{ fontFamily: "var(--serif)", fontSize: "clamp(26px,4vw,36px)", fontWeight: 400, color: "#f0ebe0", lineHeight: 1.15, marginBottom: 8 }}>Your gym<br />stamps</h2>
         <p style={{ fontSize: 13, color: "rgba(255,255,255,0.38)", lineHeight: 1.8 }}>Track every gym you visit. Rate, review, remember.</p>
       </div>
-      {homeGym && (
+      {homeGym ? (
         <div style={{ background: "rgba(52,211,153,0.06)", border: "1px solid rgba(52,211,153,0.2)", borderRadius: 14, padding: "14px 18px", marginBottom: 18, display: "flex", alignItems: "center", gap: 14 }}>
           <span style={{ fontSize: 22 }}>🏠</span>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -1688,6 +1702,11 @@ function GymPassport({ tier, userEmail, onBack, homeGym, onSetHomeGym, onClearHo
           {homeGym.scores && <Ring value={calcScore(homeGym.scores)} size={42} />}
           <button onClick={onClearHomeGym} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.2)", fontSize: 14, padding: 4 }} title="Remove home gym">×</button>
         </div>
+      ) : (
+        <button onClick={() => setShowHomeGymSearch(true)} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: "rgba(52,211,153,0.04)", border: "1px dashed rgba(52,211,153,0.2)", borderRadius: 14, padding: "14px 18px", marginBottom: 18, cursor: "pointer", fontFamily: "inherit" }}>
+          <span style={{ fontSize: 16 }}>🏠</span>
+          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>Set your Home Gym</span>
+        </button>
       )}
       <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
         <div style={{ flex: 1, display: "flex", alignItems: "center", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 9, padding: "8px 12px", gap: 7 }}>
@@ -1725,6 +1744,7 @@ function GymPassport({ tier, userEmail, onBack, homeGym, onSetHomeGym, onClearHo
         <div style={{ textAlign: "center", padding: "8px 0", fontSize: 10, color: "rgba(255,255,255,0.2)" }}>{stamps.length} stamp{stamps.length !== 1 ? "s" : ""} in your passport</div>
       )}
       {showSearch && <GymSearchForStamp onSelect={handleGymSelected} onClose={() => setShowSearch(false)} />}
+      {showHomeGymSearch && <GymSearchForStamp onSelect={(gym) => { onSetHomeGym(gym); setShowHomeGymSearch(false); }} onClose={() => setShowHomeGymSearch(false)} />}
       {addGym && <AddStampModal gym={addGym} onClose={() => setAddGym(null)} onSave={handleStampSaved} userEmail={userEmail} />}
       {selectedStamp && <StampDetailDrawer stamp={selectedStamp} gym={gymMap[selectedStamp.gym_id]} onClose={() => setSelectedStamp(null)} onSave={handleDetailSave} onDelete={handleDetailDelete} onSetHomeGym={(gym) => { onSetHomeGym(gym); setSelectedStamp(null); }} isHomeGym={homeGym?.name === gymMap[selectedStamp.gym_id]?.name && homeGym?.address === gymMap[selectedStamp.gym_id]?.address} />}
     </div>
@@ -1845,7 +1865,7 @@ export default function App() {
                 { key: "finder", label: "finder" },
                 { key: "discovery", label: "discovery" },
                 { key: "passport", label: "passport" },
-                { key: "battle", label: "battle" },
+                { key: "battle", label: "compare" },
               ].map((m, i) => (
                 <span key={m.key}>
                   {i > 0 && <span style={{ margin: "0 5px", color: "rgba(255,255,255,0.12)" }}>|</span>}
@@ -1889,7 +1909,7 @@ export default function App() {
                 The world's best gyms,<br /><em style={{ color: "#c8a84b" }}>wherever you travel</em>
               </h1>
               <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", maxWidth: 460, margin: "0 auto", lineHeight: 1.85 }}>
-                Find gyms, discover destinations, stamp your passport, and battle the best — wherever you travel.
+                Find gyms, discover destinations, stamp your passport, and compare the best — wherever you travel.
               </p>
             </div>
 
@@ -1956,13 +1976,13 @@ export default function App() {
               {/* Battle card — visible to all */}
               <div className="mode-card" onClick={() => setMode("battle")} style={{ background: "linear-gradient(145deg,rgba(249,115,22,0.07),rgba(255,255,255,0.02))", border: "1px solid rgba(249,115,22,0.2)", borderRadius: 18, padding: "26px 22px", position: "relative", overflow: "hidden" }}>
                 <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg,transparent,#f97316,transparent)" }} />
-                <div style={{ fontSize: 30, marginBottom: 12 }}>⚔️</div>
-                <div style={{ fontFamily: "var(--serif)", fontSize: 21, color: "#f0ebe0", marginBottom: 8, lineHeight: 1.2 }}>Gym<br />battle</div>
-                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.42)", lineHeight: 1.7, marginBottom: 16 }}>10 nearby gyms go head-to-head. Pick the winner in each round and crown your champion.</p>
+                <div style={{ fontSize: 30, marginBottom: 12 }}>⚖️</div>
+                <div style={{ fontFamily: "var(--serif)", fontSize: 21, color: "#f0ebe0", marginBottom: 8, lineHeight: 1.2 }}>Gym<br />compare</div>
+                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.42)", lineHeight: 1.7, marginBottom: 16 }}>10 nearby gyms go head-to-head. Pick your favorite in each round and find your top gym.</p>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 18 }}>
                   {["10 rounds", "Head-to-head", "Ranked", "Fun"].map(t => (<span key={t} style={{ fontSize: 9, background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.2)", borderRadius: 4, padding: "2px 7px", color: "#f97316" }}>{t}</span>))}
                 </div>
-                <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "linear-gradient(135deg,#f97316,#c2410c)", borderRadius: 8, padding: "8px 16px", fontSize: 11, fontWeight: 700, letterSpacing: 1.2, color: "#fff", textTransform: "uppercase" }}>Start Battle →</div>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "linear-gradient(135deg,#f97316,#c2410c)", borderRadius: 8, padding: "8px 16px", fontSize: 11, fontWeight: 700, letterSpacing: 1.2, color: "#fff", textTransform: "uppercase" }}>Start Comparing →</div>
               </div>
             </div>
 
@@ -2003,6 +2023,7 @@ export default function App() {
               onSignUp={() => setShowSignUp(true)}
               onProModal={() => setShowPro(true)}
               homeGym={homeGym}
+              onSetHomeGym={handleSetHomeGym}
             />
           </div>
         )}
