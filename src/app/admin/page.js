@@ -55,6 +55,14 @@ export default function AdminPage() {
   const [gymsCount, setGymsCount] = useState(0);
   const [gymsPage, setGymsPage] = useState(1);
 
+  const [stamps, setStamps] = useState([]);
+  const [stampsCount, setStampsCount] = useState(0);
+  const [stampsPage, setStampsPage] = useState(1);
+
+  const [battles, setBattles] = useState([]);
+  const [battlesCount, setBattlesCount] = useState(0);
+  const [battlesPage, setBattlesPage] = useState(1);
+
   // Auth check
   useEffect(() => {
     try {
@@ -69,14 +77,16 @@ export default function AdminPage() {
   useEffect(() => {
     if (!authorized) return;
     (async () => {
-      const [u, s, g] = await Promise.all([
+      const [u, s, g, st, b] = await Promise.all([
         getSupabase().from("users").select("*", { count: "exact", head: true }),
         getSupabase().from("searches").select("*", { count: "exact", head: true }),
         getSupabase().from("gyms").select("*", { count: "exact", head: true }),
+        getSupabase().from("stamps").select("*", { count: "exact", head: true }),
+        getSupabase().from("gym_battles").select("*", { count: "exact", head: true }),
       ]);
       const today = new Date().toISOString().slice(0, 10);
       const ts = await getSupabase().from("searches").select("*", { count: "exact", head: true }).gte("created_at", today);
-      setStats({ users: u.count, searches: s.count, gyms: g.count, todaySearches: ts.count });
+      setStats({ users: u.count, searches: s.count, gyms: g.count, todaySearches: ts.count, stamps: st.count, battles: b.count });
     })();
   }, [authorized]);
 
@@ -117,6 +127,35 @@ export default function AdminPage() {
     }
   }, [authorized, tab, gymsPage]);
 
+  useEffect(() => {
+    if (!authorized) return;
+    if (tab === "stamps") {
+      (async () => {
+        const { count } = await getSupabase().from("stamps").select("*", { count: "exact", head: true });
+        setStampsCount(count || 0);
+        const { data } = await getSupabase().from("stamps").select("*, gyms(name)").order("created_at", { ascending: false }).range((stampsPage - 1) * PER_PAGE, stampsPage * PER_PAGE - 1);
+        setStamps(data || []);
+      })();
+    }
+  }, [authorized, tab, stampsPage]);
+
+  useEffect(() => {
+    if (!authorized) return;
+    if (tab === "battles") {
+      (async () => {
+        const { count } = await getSupabase().from("gym_battles").select("*", { count: "exact", head: true });
+        setBattlesCount(count || 0);
+        const { data } = await getSupabase().from("gym_battles").select("*").order("created_at", { ascending: false }).range((battlesPage - 1) * PER_PAGE, battlesPage * PER_PAGE - 1);
+        // Get vote counts per battle
+        const battlesWithVotes = await Promise.all((data || []).map(async (b) => {
+          const { count: voteCount } = await getSupabase().from("battle_votes").select("*", { count: "exact", head: true }).eq("battle_id", b.id);
+          return { ...b, voteCount: voteCount || 0 };
+        }));
+        setBattles(battlesWithVotes);
+      })();
+    }
+  }, [authorized, tab, battlesPage]);
+
   if (authorized === null) return null;
 
   if (!authorized) {
@@ -132,8 +171,9 @@ export default function AdminPage() {
   }
 
   const fmt = (d) => d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
+  const fmtDate = (d) => d || "—";
 
-  const tabs = ["users", "searches", "gyms"];
+  const tabs = ["users", "searches", "gyms", "stamps", "battles"];
 
   return (
     <div style={{ "--serif": "'Cormorant Garamond','Palatino Linotype',Georgia,serif", minHeight: "100vh", background: BG, color: TEXT, fontFamily: "'DM Sans',system-ui,sans-serif" }}>
@@ -159,6 +199,8 @@ export default function AdminPage() {
           <StatCard label="Total Searches" value={stats.searches} />
           <StatCard label="Today's Searches" value={stats.todaySearches} />
           <StatCard label="Total Gyms" value={stats.gyms} />
+          <StatCard label="Total Stamps" value={stats.stamps} />
+          <StatCard label="Total Battles" value={stats.battles} />
         </div>
 
         {/* Tab bar */}
@@ -277,6 +319,70 @@ export default function AdminPage() {
               </table>
             </div>
             <Pagination page={gymsPage} setPage={setGymsPage} total={gymsCount} />
+          </div>
+        )}
+
+        {/* Stamps tab */}
+        {tab === "stamps" && (
+          <div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    <th style={thStyle}>User</th>
+                    <th style={thStyle}>Gym</th>
+                    <th style={thStyle}>Rating</th>
+                    <th style={thStyle}>Review</th>
+                    <th style={thStyle}>Visited</th>
+                    <th style={thStyle}>Created</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stamps.map(s => (
+                    <tr key={s.id}>
+                      <td style={tdStyle}>{s.user_email}</td>
+                      <td style={{ ...tdStyle, color: TEXT, fontWeight: 500 }}>{s.gyms?.name || `#${s.gym_id}`}</td>
+                      <td style={tdStyle}>{s.rating ? <span style={{ color: "#FFD700" }}>{"★".repeat(s.rating)}{"☆".repeat(5 - s.rating)}</span> : "—"}</td>
+                      <td style={{ ...tdStyle, maxWidth: 200 }}>{s.review || "—"}</td>
+                      <td style={tdStyle}>{fmtDate(s.visited_at)}</td>
+                      <td style={tdStyle}>{fmt(s.created_at)}</td>
+                    </tr>
+                  ))}
+                  {stamps.length === 0 && <tr><td colSpan={6} style={{ ...tdStyle, textAlign: "center", padding: 24 }}>No stamps yet</td></tr>}
+                </tbody>
+              </table>
+            </div>
+            <Pagination page={stampsPage} setPage={setStampsPage} total={stampsCount} />
+          </div>
+        )}
+
+        {/* Battles tab */}
+        {tab === "battles" && (
+          <div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    <th style={thStyle}>User</th>
+                    <th style={thStyle}>Location</th>
+                    <th style={thStyle}>Votes</th>
+                    <th style={thStyle}>Created</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {battles.map(b => (
+                    <tr key={b.id}>
+                      <td style={tdStyle}>{b.user_email || "Anonymous"}</td>
+                      <td style={{ ...tdStyle, color: TEXT }}>{b.location_text}</td>
+                      <td style={tdStyle}><span style={{ background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.25)", borderRadius: 4, padding: "2px 8px", fontSize: 10, color: "#f97316" }}>{b.voteCount}</span></td>
+                      <td style={tdStyle}>{fmt(b.created_at)}</td>
+                    </tr>
+                  ))}
+                  {battles.length === 0 && <tr><td colSpan={4} style={{ ...tdStyle, textAlign: "center", padding: 24 }}>No battles yet</td></tr>}
+                </tbody>
+              </table>
+            </div>
+            <Pagination page={battlesPage} setPage={setBattlesPage} total={battlesCount} />
           </div>
         )}
       </div>
