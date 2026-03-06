@@ -35,11 +35,37 @@ const TRIP_TAGS = [
   { key: "luxury",    label: "Luxury",            emoji: "✨" },
 ];
 
+const DESTINATION_TYPES = [
+  { key: "city",        label: "City / Urban",      emoji: "🏙️" },
+  { key: "mountain",    label: "Mountain",           emoji: "🏔️" },
+  { key: "beach",       label: "Beach / Coastal",    emoji: "🏖️" },
+  { key: "island",      label: "Tropical Island",    emoji: "🏝️" },
+  { key: "desert",      label: "Desert",             emoji: "🏜️" },
+  { key: "ski",         label: "Ski Resort",         emoji: "⛷️" },
+  { key: "countryside", label: "Countryside / Lake", emoji: "🏞️" },
+  { key: "park",        label: "National Park",      emoji: "🌲" },
+];
+
+const GYM_TYPES = [
+  { key: "traditional",  label: "Traditional Gym",      emoji: "💪" },
+  { key: "powerlifting", label: "Powerlifting / Olympic", emoji: "🏋️" },
+  { key: "crossfit",     label: "CrossFit",              emoji: "✖️" },
+  { key: "hiit",         label: "HIIT / Bootcamp",       emoji: "⚡" },
+  { key: "yoga",         label: "Yoga Studio",           emoji: "🧘" },
+  { key: "pilates",      label: "Pilates Studio",        emoji: "🤸" },
+  { key: "boxing",       label: "Boxing / MMA",          emoji: "🥊" },
+  { key: "climbing",     label: "Rock Climbing",         emoji: "🧗" },
+  { key: "luxury",       label: "Luxury Club",           emoji: "💎" },
+  { key: "swimming",     label: "Swimming / Aquatic",    emoji: "🏊" },
+  { key: "cycling",      label: "Cycling / Spin",        emoji: "🚴" },
+  { key: "outdoor",      label: "Outdoor / Functional",  emoji: "🌳" },
+];
+
 const DISCOVERY_PROMPTS = [
   "A mountain destination with world-class gyms",
-  "Tropical beach trip with serious lifting facilities",
+  "Tropical island with serious lifting facilities",
   "European city break with premium fitness culture",
-  "Wellness retreat with elite recovery facilities",
+  "Ski resort with nearby gym access",
 ];
 
 const FINDER_PROMPTS = [
@@ -50,6 +76,21 @@ const FINDER_PROMPTS = [
 ];
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
+function snakeToCamelGym(g) {
+  return {
+    name: g.name, type: g.type, address: g.address,
+    neighborhood: g.neighborhood, city: g.city, country: g.country,
+    description: g.description, whyRecommended: g.description,
+    scores: g.scores || {},
+    dayPassAvailable: !!g.day_pass_price, dayPassPrice: g.day_pass_price,
+    weekPassAvailable: !!g.week_pass_price, weekPassPrice: g.week_pass_price,
+    passNotes: g.pass_notes,
+    contactPhone: g.contact_phone, contactEmail: g.contact_email,
+    contactWebsite: g.contact_website, contactInstagram: g.contact_instagram,
+    tags: g.tags || [], highlights: g.highlights || [],
+  };
+}
+
 function calcScore(scores) {
   if (!scores) return 0;
   return Math.round(GYM_CRITERIA.reduce((a, c) => a + (scores[c.key] || 0) * c.weight, 0));
@@ -572,10 +613,11 @@ function ResultsList({ gyms, tier, stayingAt, onSignUp }) {
 }
 
 // ─── Gym Finder Flow ──────────────────────────────────────────────────────────
-function GymFinder({ tier, searchCount, userEmail, onSearch, onBack, onSignUp, onProModal }) {
+function GymFinder({ tier, searchCount, userEmail, onSearch, onBack, onSignUp, onProModal, homeGym }) {
   const [destination, setDestination] = useState("");
   const [stayingAt,   setStayingAt]   = useState("");
   const [tripType,    setTripType]    = useState("work");
+  const [gymTypes,    setGymTypes]    = useState([]);
   const [gyms,        setGyms]        = useState([]);
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState(null);
@@ -591,11 +633,24 @@ function GymFinder({ tier, searchCount, userEmail, onSearch, onBack, onSignUp, o
     if (!canSearch) { onProModal(); return; }
     setLoading(true); setError(null); setGyms([]); setHasSearched(true); setLastDest(dest);
     onSearch();
+    // Supabase-first: check for cached gyms
+    try {
+      const { data: cachedGyms } = await getSupabase()?.from("gyms")
+        .select("*").ilike("city", `%${dest.trim()}%`)
+        .order("updated_at", { ascending: false }).limit(20) || {};
+      if (cachedGyms && cachedGyms.length >= 6) {
+        setGyms(cachedGyms.slice(0, 6).map(snakeToCamelGym));
+        setLoading(false);
+        return;
+      }
+    } catch {}
     const tripLabel = TRIP_TAGS.find(t => t.key === trip)?.label || trip;
     const locCtx = stayingAt ? `User staying near: "${stayingAt}". Factor proximity into ranking. Estimate realistic walk/transit/uber times.` : "No hotel provided.";
+    const gymTypeCtx = gymTypes.length > 0 ? `\nPREFERRED GYM TYPES: ${gymTypes.map(k => GYM_TYPES.find(t => t.key === k)?.label).filter(Boolean).join(", ")}. Prioritize these gym types but include others if they're exceptional.` : "";
+    const homeGymCtx = homeGym ? `\nUSER'S HOME GYM: "${homeGym.name}" (${homeGym.type}) in ${homeGym.city || homeGym.address}. Find gyms of similar quality and style that will help maintain their routine.` : "";
     const sys = `You are IronPassport. Find the top 6 real gyms stack-ranked for a traveler.
 TRIP TYPE: ${tripLabel} | LOCATION: ${dest}
-${locCtx}
+${locCtx}${gymTypeCtx}${homeGymCtx}
 SCORING (0-100 per criterion):
 ${GYM_CRITERIA.map(c => `- ${c.key} (${Math.round(c.weight * 100)}%)`).join("\n")}
 Return JSON array of exactly 6:
@@ -667,6 +722,20 @@ Use real gym names. Include real contact info where known. Differentiate scores.
           </button>
         ))}
       </div>
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.28)", letterSpacing: 2, textTransform: "uppercase", marginBottom: 6 }}>Gym types (optional)</div>
+        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+          {GYM_TYPES.map(t => {
+            const sel = gymTypes.includes(t.key);
+            return (
+              <button key={t.key} onClick={() => setGymTypes(prev => sel ? prev.filter(k => k !== t.key) : [...prev, t.key])} className="pill"
+                style={{ background: sel ? "rgba(200,168,75,0.14)" : "rgba(255,255,255,0.04)", border: `1px solid ${sel ? "rgba(200,168,75,0.38)" : "rgba(255,255,255,0.08)"}`, color: sel ? "#c8a84b" : "rgba(255,255,255,0.42)", fontSize: 10 }}>
+                {t.emoji} {t.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
         {[
           { label: "Where are you going?",  placeholder: "Las Vegas, NYC, Tokyo…", icon: "📍", val: destination, set: setDestination },
@@ -713,9 +782,10 @@ Use real gym names. Include real contact info where known. Differentiate scores.
 }
 
 // ─── Destination Discovery Flow ───────────────────────────────────────────────
-function DestDiscovery({ tier, searchCount, userEmail, onSearch, onBack, onSignUp, onProModal }) {
+function DestDiscovery({ tier, searchCount, userEmail, onSearch, onBack, onSignUp, onProModal, homeGym }) {
   const [query,        setQuery]        = useState("");
-  const [tripType,     setTripType]     = useState("adventure");
+  const [tripType,     setTripType]     = useState("city");
+  const [gymTypes,     setGymTypes]     = useState([]);
   const [destinations, setDestinations] = useState([]);
   const [loading,      setLoading]      = useState(false);
   const [error,        setError]        = useState(null);
@@ -732,9 +802,11 @@ function DestDiscovery({ tier, searchCount, userEmail, onSearch, onBack, onSignU
     if (!canSearch) { onProModal(); return; }
     setLoading(true); setError(null); setDestinations([]); setHasSearched(true); setExpanded(null);
     onSearch();
-    const tripLabel = TRIP_TAGS.find(t => t.key === trip)?.label || trip;
+    const destLabel = DESTINATION_TYPES.find(t => t.key === trip)?.label || trip;
+    const gymTypeCtx = gymTypes.length > 0 ? `\nPREFERRED GYM TYPES: ${gymTypes.map(k => GYM_TYPES.find(t => t.key === k)?.label).filter(Boolean).join(", ")}. Prioritize these gym types but include others if they're exceptional.` : "";
+    const homeGymCtx = homeGym ? `\nUSER'S HOME GYM: "${homeGym.name}" (${homeGym.type}) in ${homeGym.city || homeGym.address}. Find gyms of similar quality and style that will help maintain their routine.` : "";
     const sys = `You are IronPassport. Recommend top travel DESTINATIONS ranked by gym quality + destination fit.
-TRIP VIBE: ${tripLabel}
+DESTINATION SETTING: ${destLabel}${gymTypeCtx}${homeGymCtx}
 SCORING:
 ${GYM_CRITERIA.map(c => `- ${c.key} (${Math.round(c.weight * 100)}%)`).join("\n")}
 Combined = 50% destination + 50% top gym score.
@@ -794,21 +866,35 @@ Use real gym names. Include real contact info where known. Differentiate scores.
       {hasSearched && !loading && destinations.length > 0 && (
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontFamily: "var(--serif)", fontSize: 24, color: "#f0ebe0" }}>6 Destinations Ranked</div>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 4 }}>{TRIP_TAGS.find(t => t.key === tripType)?.emoji} {TRIP_TAGS.find(t => t.key === tripType)?.label} · gym + destination score</div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 4 }}>{DESTINATION_TYPES.find(t => t.key === tripType)?.emoji} {DESTINATION_TYPES.find(t => t.key === tripType)?.label} · gym + destination score</div>
         </div>
       )}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
-        {TRIP_TAGS.map(t => (
+        {DESTINATION_TYPES.map(t => (
           <button key={t.key} onClick={() => setTripType(t.key)} className="pill"
             style={{ background: tripType === t.key ? "rgba(96,165,250,0.14)" : "rgba(255,255,255,0.04)", border: `1px solid ${tripType === t.key ? "rgba(96,165,250,0.38)" : "rgba(255,255,255,0.08)"}`, color: tripType === t.key ? "#93c5fd" : "rgba(255,255,255,0.42)" }}>
             {t.emoji} {t.label}
           </button>
         ))}
       </div>
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.28)", letterSpacing: 2, textTransform: "uppercase", marginBottom: 6 }}>Gym types (optional)</div>
+        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+          {GYM_TYPES.map(t => {
+            const sel = gymTypes.includes(t.key);
+            return (
+              <button key={t.key} onClick={() => setGymTypes(prev => sel ? prev.filter(k => k !== t.key) : [...prev, t.key])} className="pill"
+                style={{ background: sel ? "rgba(96,165,250,0.14)" : "rgba(255,255,255,0.04)", border: `1px solid ${sel ? "rgba(96,165,250,0.38)" : "rgba(255,255,255,0.08)"}`, color: sel ? "#93c5fd" : "rgba(255,255,255,0.42)", fontSize: 10 }}>
+                {t.emoji} {t.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
       <div style={{ display: "flex", alignItems: "center", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 9, padding: "9px 13px", gap: 8, marginBottom: 10 }}>
         <span style={{ opacity: 0.45 }}>🧭</span>
         <input value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === "Enter" && doSearch()}
-          placeholder="A mountain destination with world-class gyms…"
+          placeholder="Describe your ideal destination and gym preferences…"
           style={{ flex: 1, background: "none", border: "none", outline: "none", color: "#f0ebe0", fontSize: 13, fontFamily: "inherit" }} />
       </div>
       <button onClick={() => doSearch()} disabled={loading || !query.trim()} className="cta-btn cta-blue" style={{ opacity: query.trim() ? 1 : 0.35 }}>
@@ -1125,6 +1211,22 @@ function GymBattle({ tier, userEmail, onBack, onSignUp }) {
     setLocation(loc);
     setPhase("loading");
     setError(null);
+    // Supabase-first: check for cached gyms
+    try {
+      const { data: cachedGyms } = await getSupabase()?.from("gyms")
+        .select("*").ilike("city", `%${loc.text.trim()}%`)
+        .order("updated_at", { ascending: false }).limit(20) || {};
+      if (cachedGyms && cachedGyms.length >= 10) {
+        const converted = cachedGyms.slice(0, 10).map(snakeToCamelGym);
+        setGyms(converted);
+        const p = generatePairs(converted, 10);
+        setPairs(p);
+        setRound(0);
+        setVotes([]);
+        setPhase("battle");
+        return;
+      }
+    } catch {}
     const coordCtx = loc.lat ? `Coordinates: ${loc.lat}, ${loc.lng}.` : "";
     const sys = `You are IronPassport. Find the 10 closest real gyms to the given location.
 ${coordCtx}
@@ -1255,7 +1357,7 @@ function StampCard({ stamp, gym, onClick }) {
 }
 
 // ─── Stamp Detail Drawer ──────────────────────────────────────────────────────
-function StampDetailDrawer({ stamp, gym, onClose, onSave, onDelete }) {
+function StampDetailDrawer({ stamp, gym, onClose, onSave, onDelete, onSetHomeGym, isHomeGym }) {
   const [rating, setRating]   = useState(stamp?.rating || 0);
   const [review, setReview]   = useState(stamp?.review || "");
   const [date, setDate]       = useState(stamp?.visited_at || new Date().toISOString().slice(0, 10));
@@ -1302,6 +1404,18 @@ function StampDetailDrawer({ stamp, gym, onClose, onSave, onDelete }) {
           <button onClick={onClose} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "50%", width: 28, height: 28, cursor: "pointer", color: "rgba(255,255,255,0.45)", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>×</button>
         </div>
         <div style={{ padding: "18px 22px", display: "grid", gap: 16 }}>
+          {/* Home gym */}
+          {isHomeGym ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.25)", borderRadius: 10, padding: "10px 14px" }}>
+              <span style={{ fontSize: 16 }}>🏠</span>
+              <span style={{ fontSize: 12, color: "#34d399", fontWeight: 600 }}>This is your Home Gym</span>
+            </div>
+          ) : onSetHomeGym && (
+            <button onClick={() => onSetHomeGym(gym)} style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 14px", cursor: "pointer", width: "100%", fontFamily: "inherit" }}>
+              <span style={{ fontSize: 14 }}>🏠</span>
+              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>Set as Home Gym</span>
+            </button>
+          )}
           {/* Editable stamp fields */}
           <div>
             <div style={{ fontSize: 9, color: "#34d399", letterSpacing: 3, textTransform: "uppercase", marginBottom: 10 }}>Your Stamp</div>
@@ -1502,7 +1616,7 @@ function AddStampModal({ gym, onClose, onSave, userEmail }) {
 }
 
 // ─── Gym Passport ─────────────────────────────────────────────────────────────
-function GymPassport({ tier, userEmail, onBack }) {
+function GymPassport({ tier, userEmail, onBack, homeGym, onSetHomeGym, onClearHomeGym }) {
   const [stamps, setStamps]             = useState([]);
   const [gymMap, setGymMap]             = useState({});
   const [loading, setLoading]           = useState(true);
@@ -1563,6 +1677,18 @@ function GymPassport({ tier, userEmail, onBack }) {
         <h2 style={{ fontFamily: "var(--serif)", fontSize: "clamp(26px,4vw,36px)", fontWeight: 400, color: "#f0ebe0", lineHeight: 1.15, marginBottom: 8 }}>Your gym<br />stamps</h2>
         <p style={{ fontSize: 13, color: "rgba(255,255,255,0.38)", lineHeight: 1.8 }}>Track every gym you visit. Rate, review, remember.</p>
       </div>
+      {homeGym && (
+        <div style={{ background: "rgba(52,211,153,0.06)", border: "1px solid rgba(52,211,153,0.2)", borderRadius: 14, padding: "14px 18px", marginBottom: 18, display: "flex", alignItems: "center", gap: 14 }}>
+          <span style={{ fontSize: 22 }}>🏠</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 9, color: "#34d399", letterSpacing: 2, textTransform: "uppercase", marginBottom: 3 }}>Home Gym</div>
+            <div style={{ fontFamily: "var(--serif)", fontSize: 16, color: "#f0ebe0" }}>{homeGym.name}</div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{homeGym.type}{homeGym.city ? ` · ${homeGym.city}` : ""}</div>
+          </div>
+          {homeGym.scores && <Ring value={calcScore(homeGym.scores)} size={42} />}
+          <button onClick={onClearHomeGym} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.2)", fontSize: 14, padding: 4 }} title="Remove home gym">×</button>
+        </div>
+      )}
       <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
         <div style={{ flex: 1, display: "flex", alignItems: "center", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 9, padding: "8px 12px", gap: 7 }}>
           <span style={{ opacity: 0.4 }}>🔍</span>
@@ -1600,7 +1726,7 @@ function GymPassport({ tier, userEmail, onBack }) {
       )}
       {showSearch && <GymSearchForStamp onSelect={handleGymSelected} onClose={() => setShowSearch(false)} />}
       {addGym && <AddStampModal gym={addGym} onClose={() => setAddGym(null)} onSave={handleStampSaved} userEmail={userEmail} />}
-      {selectedStamp && <StampDetailDrawer stamp={selectedStamp} gym={gymMap[selectedStamp.gym_id]} onClose={() => setSelectedStamp(null)} onSave={handleDetailSave} onDelete={handleDetailDelete} />}
+      {selectedStamp && <StampDetailDrawer stamp={selectedStamp} gym={gymMap[selectedStamp.gym_id]} onClose={() => setSelectedStamp(null)} onSave={handleDetailSave} onDelete={handleDetailDelete} onSetHomeGym={(gym) => { onSetHomeGym(gym); setSelectedStamp(null); }} isHomeGym={homeGym?.name === gymMap[selectedStamp.gym_id]?.name && homeGym?.address === gymMap[selectedStamp.gym_id]?.address} />}
     </div>
   );
 }
@@ -1613,6 +1739,7 @@ export default function App() {
   const [userEmail,   setUserEmail]   = useState("");
   const [showSignUp,  setShowSignUp]  = useState(false);
   const [showPro,     setShowPro]     = useState(false);
+  const [homeGym,     setHomeGym]     = useState(null);
 
   // Load persisted state
   useEffect(() => {
@@ -1620,9 +1747,12 @@ export default function App() {
       const t  = localStorage.getItem("ip_tier");
       const sc = localStorage.getItem("ip_search_count");
       const em = localStorage.getItem("ip_email");
+      const hg = localStorage.getItem("ip_home_gym");
       if (t)  setTier(t);
       if (sc) setSearchCount(parseInt(sc) || 0);
       if (em) setUserEmail(em);
+      if (em === "tylerjyoung5@gmail.com") { setTier("pro"); setSearchCount(0); }
+      if (hg) try { setHomeGym(JSON.parse(hg)); } catch {}
     } catch {}
   }, []);
 
@@ -1654,6 +1784,16 @@ export default function App() {
     localStorage.removeItem("ip_tier");
     localStorage.removeItem("ip_search_count");
     localStorage.removeItem("ip_email");
+  }
+
+  function handleSetHomeGym(gym) {
+    setHomeGym(gym);
+    localStorage.setItem("ip_home_gym", JSON.stringify(gym));
+  }
+
+  function handleClearHomeGym() {
+    setHomeGym(null);
+    localStorage.removeItem("ip_home_gym");
   }
 
   const searchesLeft = tier === "pro" ? "∞" : Math.max(0, TIERS[tier].searches - searchCount);
@@ -1862,6 +2002,7 @@ export default function App() {
               onBack={() => setMode(null)}
               onSignUp={() => setShowSignUp(true)}
               onProModal={() => setShowPro(true)}
+              homeGym={homeGym}
             />
           </div>
         )}
@@ -1875,6 +2016,7 @@ export default function App() {
               onBack={() => setMode(null)}
               onSignUp={() => setShowSignUp(true)}
               onProModal={() => setShowPro(true)}
+              homeGym={homeGym}
             />
           </div>
         )}
@@ -1885,6 +2027,9 @@ export default function App() {
               tier={tier}
               userEmail={userEmail}
               onBack={() => setMode(null)}
+              homeGym={homeGym}
+              onSetHomeGym={handleSetHomeGym}
+              onClearHomeGym={handleClearHomeGym}
             />
           </div>
         )}
