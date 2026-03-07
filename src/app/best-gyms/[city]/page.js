@@ -1,22 +1,25 @@
 import {
-  getCityData,
-  ALL_CITY_SLUGS,
+  getCityBySlug,
+  getAllCitySlugs,
   getNearbyDestinations,
   getRelatedCities,
-  GYM_CRITERIA,
-  scoreColor,
-} from "../../../lib/city-data";
+} from "@/lib/data";
+import { GYM_CRITERIA, scoreColor } from "@/lib/city-helpers";
 import styles from "../city-page.module.css";
 
+export const revalidate = 86400;
+export const dynamicParams = true;
+
 /** Generate static params for all city pages */
-export function generateStaticParams() {
-  return ALL_CITY_SLUGS.map((city) => ({ city }));
+export async function generateStaticParams() {
+  const slugs = await getAllCitySlugs();
+  return slugs.map((city) => ({ city }));
 }
 
 /** SEO metadata */
 export async function generateMetadata({ params }) {
   const { city: citySlug } = await params;
-  const city = getCityData(citySlug);
+  const city = await getCityBySlug(citySlug);
   if (!city) {
     return { title: "City Not Found — Iron Passport" };
   }
@@ -172,7 +175,7 @@ function GymCard({ gym, rank }) {
               className={styles.scoreItemValue}
               style={{ color: scoreColor(gym.scores[c.key] || 0) }}
             >
-              {gym.scores[c.key] || "—"}
+              {gym.scores[c.key] || "\u2014"}
             </span>
           </div>
         ))}
@@ -228,7 +231,6 @@ function GymCard({ gym, rank }) {
 function CitySummary({ city }) {
   const gyms = city.gyms;
 
-  // Compute aggregate summaries
   const avgScore = (key) => {
     const vals = gyms.map((g) => g.scores[key]).filter(Boolean);
     return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
@@ -260,7 +262,7 @@ function CitySummary({ city }) {
           </strong>
           . {avgScore("cleanliness") >= 85
             ? "Facilities are consistently well-maintained and hygienic."
-            : "Standards vary — check individual gym ratings for details."}
+            : "Standards vary \u2014 check individual gym ratings for details."}
         </p>
       </div>
       <div className={styles.summaryBox}>
@@ -283,7 +285,7 @@ function CitySummary({ city }) {
           </strong>
           . {avgScore("recovery") >= 70
             ? "Good recovery options including saunas, steam rooms, and cold plunge."
-            : "Recovery facilities vary — premium clubs tend to offer the best options."}
+            : "Recovery facilities vary \u2014 premium clubs tend to offer the best options."}
         </p>
       </div>
       <div className={styles.summaryBox}>
@@ -325,9 +327,9 @@ function FAQSection({ faqs }) {
 }
 
 /** Internal links section */
-function InternalLinks({ slug }) {
-  const nearby = getNearbyDestinations(slug);
-  const related = getRelatedCities(slug);
+async function InternalLinks({ slug }) {
+  const nearby = await getNearbyDestinations(slug);
+  const related = await getRelatedCities(slug);
 
   if (nearby.length === 0 && related.length === 0) return null;
 
@@ -383,7 +385,7 @@ function InternalLinks({ slug }) {
 /** Main city page — Server Component (crawlable HTML) */
 export default async function CityPage({ params }) {
   const { city: citySlug } = await params;
-  const city = getCityData(citySlug);
+  const city = await getCityBySlug(citySlug);
 
   if (!city) {
     return (
@@ -438,6 +440,13 @@ export default async function CityPage({ params }) {
 
         {/* Internal Links */}
         <InternalLinks slug={city.slug} />
+
+        {/* Compare link */}
+        <div style={{ textAlign: "center", margin: "24px 0" }}>
+          <a href={`/compare/${city.slug}`} style={{ color: "#c8a84b", fontSize: 14 }}>
+            Compare all gyms in {city.name} side-by-side →
+          </a>
+        </div>
 
         {/* CTA */}
         <div className={styles.ctaSection}>

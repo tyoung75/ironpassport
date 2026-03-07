@@ -1,5 +1,7 @@
-import { getAllCities } from "../../lib/city-data";
+import { getAllCities } from "@/lib/data";
 import styles from "./city-page.module.css";
+
+export const revalidate = 86400;
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -19,8 +21,8 @@ export const metadata = {
   },
 };
 
-export default function BestGymsIndex() {
-  const cities = getAllCities();
+export default async function BestGymsIndex() {
+  const cities = await getAllCities();
 
   // Group cities by region
   const byRegion = {};

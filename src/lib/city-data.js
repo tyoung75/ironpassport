@@ -1,13 +1,9 @@
 /**
- * City data source for SEO city gym pages.
- *
- * DATA POPULATION NOTES:
- * - Gym scores, prices, and descriptions below are sample/placeholder data.
- * - To populate with real data, replace the gym arrays with data from your
- *   Supabase "gyms" table (query by city) or from the seed script output.
- * - The `generateCityFAQs` function produces generic FAQs; customize per city
- *   for better SEO value.
- * - Add new cities by appending to CITY_DATA and updating ALL_CITY_SLUGS.
+ * @deprecated — This file is no longer used by any page component.
+ * Data now comes from Supabase via src/lib/data.js.
+ * Helper functions moved to src/lib/city-helpers.js.
+ * This file is only kept for the one-time migration script (scripts/migrate-data.mjs).
+ * Safe to delete after migration is complete.
  */
 
 const CURRENT_YEAR = new Date().getFullYear();

@@ -1,0 +1,46 @@
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- Iron Passport: Database Webhooks for On-Demand Revalidation
+--
+-- NOTE: Supabase database webhooks are configured in the Dashboard, not via SQL.
+-- This file documents the webhook configuration to set up manually.
+--
+-- Dashboard path: Database → Webhooks → Create a new webhook
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+-- Webhook 1: Gyms table changes
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Name:     revalidate-gym-pages
+-- Table:    gyms
+-- Events:   INSERT, UPDATE, DELETE
+-- Type:     HTTP Request
+-- Method:   POST
+-- URL:      https://ironpassport.com/api/revalidate
+-- Headers:
+--   x-revalidation-secret: <your REVALIDATION_SECRET env var value>
+--   Content-Type: application/json
+--
+-- The webhook payload automatically includes:
+--   { table: "gyms", record: { slug, city_slug, ... }, type: "INSERT"|"UPDATE"|"DELETE" }
+
+-- Webhook 2: Cities table changes
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Name:     revalidate-city-pages
+-- Table:    cities
+-- Events:   INSERT, UPDATE, DELETE
+-- Type:     HTTP Request
+-- Method:   POST
+-- URL:      https://ironpassport.com/api/revalidate
+-- Headers:
+--   x-revalidation-secret: <your REVALIDATION_SECRET env var value>
+--   Content-Type: application/json
+--
+-- The webhook payload automatically includes:
+--   { table: "cities", record: { slug, ... }, type: "INSERT"|"UPDATE"|"DELETE" }
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- Environment variable to add to Vercel:
+--
+--   REVALIDATION_SECRET=<generate a random secret string>
+--
+-- Generate one with: openssl rand -hex 32
+-- ═══════════════════════════════════════════════════════════════════════════════

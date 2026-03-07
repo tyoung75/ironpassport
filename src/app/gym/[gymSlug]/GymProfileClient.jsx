@@ -27,7 +27,7 @@ function Breadcrumbs({ gym }) {
     <nav aria-label="Breadcrumb" style={{ fontSize: 12, color: DIM, marginBottom: 20 }}>
       <a href="/" style={{ color: GOLD, textDecoration: "none" }}>Home</a>
       <span style={{ margin: "0 8px" }}>/</span>
-      <a href={`/city/${gym.citySlug}/`} style={{ color: GOLD, textDecoration: "none" }}>
+      <a href={`/best-gyms/${gym.citySlug}/`} style={{ color: GOLD, textDecoration: "none" }}>
         Best Gyms in {gym.city}
       </a>
       <span style={{ margin: "0 8px" }}>/</span>
@@ -592,7 +592,7 @@ export default function GymProfileClient({ gym, similarGyms, cityGyms }) {
               ))}
             </div>
             <a
-              href={`/city/${gym.citySlug}/`}
+              href={`/best-gyms/${gym.citySlug}/`}
               style={{
                 display: "inline-block",
                 background: "rgba(200,168,75,0.1)",

@@ -1,21 +1,8 @@
 /**
- * Iron Passport – Gym Master Dataset
- *
- * This file is the canonical source for gym profile pages during static export.
- * In production, run `npm run sync-gyms` to refresh from Supabase.
- *
- * REQUIRED FIELDS:
- *   name, city, country, slug, type, description, scores
- *
- * OPTIONAL BUT VALUABLE:
- *   neighborhood, address, dayPassPrice, weekPassPrice, passNotes,
- *   contactPhone, contactEmail, contactWebsite, contactInstagram,
- *   tags, highlights, photos, latitude, longitude,
- *   nearbyHotels, equipmentList, recoveryAmenities, hotelProximity
- *
- * STALENESS RULE:
- *   Re-sync from Supabase at least weekly. Scores and pass prices may change.
- *   The `updatedAt` field tracks the last data refresh.
+ * @deprecated — This file is no longer used by any page component.
+ * Data now comes from Supabase via src/lib/data.js.
+ * This file is only kept for the one-time migration script (scripts/migrate-data.mjs).
+ * Safe to delete after migration is complete.
  */
 
 import { generateGymSlug, generateCitySlug } from "../lib/slugify.js";

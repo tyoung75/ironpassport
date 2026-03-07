@@ -76,6 +76,29 @@ export default function AdminPage() {
   const [seoLoading, setSeoLoading] = useState(false);
   const [seoDays, setSeoDays] = useState(7);
 
+  // Add Gym form state
+  const [gymForm, setGymForm] = useState({
+    name: "", city: "", country: "", type: "Traditional Gym", address: "", neighborhood: "",
+    description: "", dayPassPrice: "", weekPassPrice: "", passNotes: "",
+    contactPhone: "", contactEmail: "", contactWebsite: "", contactInstagram: "",
+    equipment: 75, cleanliness: 75, amenities: 75, staff: 75,
+    atmosphere: 75, value: 75, recovery: 75, classes: 75,
+  });
+  const [gymFormStatus, setGymFormStatus] = useState(null);
+
+  // Add City form state
+  const [cityForm, setCityForm] = useState({
+    name: "", country: "", region: "", description: "",
+    nearbyDestinations: "", relatedCities: "",
+  });
+  const [cityFormStatus, setCityFormStatus] = useState(null);
+
+  // Rankings editor state
+  const [rankGyms, setRankGyms] = useState([]);
+  const [rankCity, setRankCity] = useState("");
+  const [rankCities, setRankCities] = useState([]);
+  const [rankSaving, setRankSaving] = useState(null);
+
   // Auth check
   useEffect(() => {
     try {
@@ -85,6 +108,126 @@ export default function AdminPage() {
       setAuthorized(false);
     }
   }, []);
+
+  // Load ranking cities list
+  useEffect(() => {
+    if (!authorized || tab !== "rankings") return;
+    (async () => {
+      const { data } = await getSupabase().from("cities").select("slug, name").order("name");
+      setRankCities(data || []);
+    })();
+  }, [authorized, tab]);
+
+  // Load ranking gyms when city changes
+  useEffect(() => {
+    if (!authorized || !rankCity) return;
+    (async () => {
+      const { data } = await getSupabase()
+        .from("gyms")
+        .select("id, name, slug, scores")
+        .eq("city_slug", rankCity)
+        .order("name");
+      setRankGyms(data || []);
+    })();
+  }, [authorized, rankCity]);
+
+  function makeSlug(text) {
+    return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+  }
+
+  async function triggerRevalidation(body) {
+    try {
+      await fetch("/api/revalidate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-revalidation-secret": "local-admin",
+        },
+        body: JSON.stringify(body),
+      });
+    } catch {}
+  }
+
+  async function handleAddGym(e) {
+    e.preventDefault();
+    setGymFormStatus("saving");
+    const f = gymForm;
+    const slug = makeSlug(`${f.name} ${f.city}`);
+    const citySlug = makeSlug(f.city);
+
+    // Auto-create city if it doesn't exist
+    const { data: existingCity } = await getSupabase().from("cities").select("slug").eq("slug", citySlug).single();
+    if (!existingCity) {
+      await getSupabase().from("cities").insert({
+        slug: citySlug, name: f.city, country: f.country,
+        nearby_destinations: [], related_cities: [],
+      });
+    }
+
+    const row = {
+      name: f.name, city: f.city, country: f.country, type: f.type,
+      address: f.address, neighborhood: f.neighborhood || null,
+      description: f.description, slug, city_slug: citySlug,
+      scores: {
+        equipment: Number(f.equipment), cleanliness: Number(f.cleanliness),
+        amenities: Number(f.amenities), staff: Number(f.staff),
+        atmosphere: Number(f.atmosphere), value: Number(f.value),
+        recovery: Number(f.recovery), classes: Number(f.classes),
+      },
+      day_pass_price: f.dayPassPrice || null,
+      week_pass_price: f.weekPassPrice || null,
+      pass_notes: f.passNotes || null,
+      contact_phone: f.contactPhone || null,
+      contact_email: f.contactEmail || null,
+      contact_website: f.contactWebsite || null,
+      contact_instagram: f.contactInstagram || null,
+      tags: [], highlights: [], equipment_list: [], recovery_amenities: [],
+      data_source: "admin",
+    };
+
+    const { error } = await getSupabase().from("gyms").upsert(row, { onConflict: "slug" });
+    if (error) {
+      setGymFormStatus(`Error: ${error.message}`);
+    } else {
+      setGymFormStatus("Gym added successfully!");
+      await triggerRevalidation({ type: "gym", slug, city_slug: citySlug });
+      setGymForm({ ...gymForm, name: "", address: "", neighborhood: "", description: "", dayPassPrice: "", weekPassPrice: "", passNotes: "" });
+    }
+  }
+
+  async function handleAddCity(e) {
+    e.preventDefault();
+    setCityFormStatus("saving");
+    const f = cityForm;
+    const slug = makeSlug(f.name);
+
+    const row = {
+      slug, name: f.name, country: f.country, region: f.region || null,
+      description: f.description || null,
+      nearby_destinations: f.nearbyDestinations ? f.nearbyDestinations.split(",").map(s => s.trim()).filter(Boolean) : [],
+      related_cities: f.relatedCities ? f.relatedCities.split(",").map(s => s.trim()).filter(Boolean) : [],
+    };
+
+    const { error } = await getSupabase().from("cities").upsert(row, { onConflict: "slug" });
+    if (error) {
+      setCityFormStatus(`Error: ${error.message}`);
+    } else {
+      setCityFormStatus("City added successfully!");
+      await triggerRevalidation({ type: "city", slug });
+      setCityForm({ name: "", country: "", region: "", description: "", nearbyDestinations: "", relatedCities: "" });
+    }
+  }
+
+  async function handleScoreUpdate(gymId, slug, citySlug, scores) {
+    setRankSaving(gymId);
+    const { error } = await getSupabase().from("gyms").update({ scores }).eq("id", gymId);
+    if (!error) {
+      await triggerRevalidation({ type: "gym", slug, city_slug: citySlug });
+      setRankGyms(prev => prev.map(g => g.id === gymId ? { ...g, scores } : g));
+    }
+    setRankSaving(null);
+  }
 
   // Load stats
   useEffect(() => {
@@ -269,7 +412,7 @@ export default function AdminPage() {
   const fmt = (d) => d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
   const fmtDate = (d) => d || "—";
 
-  const tabs = ["users", "searches", "gyms", "stamps", "battles", "analytics", "seo"];
+  const tabs = ["users", "searches", "gyms", "stamps", "battles", "analytics", "seo", "add-gym", "add-city", "rankings"];
 
   return (
     <div style={{ "--serif": "'Cormorant Garamond','Palatino Linotype',Georgia,serif", minHeight: "100vh", background: BG, color: TEXT, fontFamily: "'DM Sans',system-ui,sans-serif" }}>
@@ -580,6 +723,165 @@ export default function AdminPage() {
                 </table>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Add Gym tab */}
+        {tab === "add-gym" && (
+          <div>
+            <form onSubmit={handleAddGym} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, maxWidth: 700 }}>
+              {[
+                ["name", "Gym Name *", "text", true],
+                ["city", "City *", "text", true],
+                ["country", "Country *", "text", true],
+                ["type", "Type", "text", false],
+                ["address", "Address", "text", false],
+                ["neighborhood", "Neighborhood", "text", false],
+                ["dayPassPrice", "Day Pass Price", "text", false],
+                ["weekPassPrice", "Week Pass Price", "text", false],
+                ["contactPhone", "Phone", "text", false],
+                ["contactEmail", "Email", "text", false],
+                ["contactWebsite", "Website", "text", false],
+                ["contactInstagram", "Instagram", "text", false],
+              ].map(([key, label, type, req]) => (
+                <label key={key} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span style={{ fontSize: 10, color: DIM, letterSpacing: 1, textTransform: "uppercase" }}>{label}</span>
+                  <input type={type} required={req} value={gymForm[key]} onChange={e => setGymForm(f => ({ ...f, [key]: e.target.value }))}
+                    style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 12, fontFamily: "inherit" }} />
+                </label>
+              ))}
+              <label style={{ gridColumn: "1 / -1", display: "flex", flexDirection: "column", gap: 4 }}>
+                <span style={{ fontSize: 10, color: DIM, letterSpacing: 1, textTransform: "uppercase" }}>Description</span>
+                <textarea value={gymForm.description} onChange={e => setGymForm(f => ({ ...f, description: e.target.value }))} rows={3}
+                  style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 12, fontFamily: "inherit", resize: "vertical" }} />
+              </label>
+              <label style={{ gridColumn: "1 / -1", display: "flex", flexDirection: "column", gap: 4 }}>
+                <span style={{ fontSize: 10, color: DIM, letterSpacing: 1, textTransform: "uppercase" }}>Pass Notes</span>
+                <input type="text" value={gymForm.passNotes} onChange={e => setGymForm(f => ({ ...f, passNotes: e.target.value }))}
+                  style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 12, fontFamily: "inherit" }} />
+              </label>
+              <div style={{ gridColumn: "1 / -1", fontSize: 10, color: GOLD, letterSpacing: 2, textTransform: "uppercase", marginTop: 8 }}>Scores (0–100)</div>
+              {["equipment", "cleanliness", "amenities", "staff", "atmosphere", "value", "recovery", "classes"].map(key => (
+                <label key={key} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span style={{ fontSize: 10, color: DIM, textTransform: "capitalize" }}>{key}: {gymForm[key]}</span>
+                  <input type="range" min="0" max="100" value={gymForm[key]} onChange={e => setGymForm(f => ({ ...f, [key]: e.target.value }))}
+                    style={{ accentColor: GOLD }} />
+                </label>
+              ))}
+              <div style={{ gridColumn: "1 / -1", display: "flex", gap: 12, alignItems: "center", marginTop: 12 }}>
+                <button type="submit" disabled={gymFormStatus === "saving"}
+                  style={{ background: `linear-gradient(135deg,${GOLD},#8a6f28)`, border: "none", borderRadius: 8, padding: "10px 28px", color: "#090807", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                  {gymFormStatus === "saving" ? "Saving..." : "Add Gym"}
+                </button>
+                {gymFormStatus && gymFormStatus !== "saving" && (
+                  <span style={{ fontSize: 12, color: gymFormStatus.startsWith("Error") ? "#ef4444" : "#22c55e" }}>{gymFormStatus}</span>
+                )}
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Add City tab */}
+        {tab === "add-city" && (
+          <div>
+            <form onSubmit={handleAddCity} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, maxWidth: 700 }}>
+              {[
+                ["name", "City Name *", true],
+                ["country", "Country *", true],
+                ["region", "Region", false],
+              ].map(([key, label, req]) => (
+                <label key={key} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span style={{ fontSize: 10, color: DIM, letterSpacing: 1, textTransform: "uppercase" }}>{label}</span>
+                  <input type="text" required={req} value={cityForm[key]} onChange={e => setCityForm(f => ({ ...f, [key]: e.target.value }))}
+                    style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 12, fontFamily: "inherit" }} />
+                </label>
+              ))}
+              <label style={{ gridColumn: "1 / -1", display: "flex", flexDirection: "column", gap: 4 }}>
+                <span style={{ fontSize: 10, color: DIM, letterSpacing: 1, textTransform: "uppercase" }}>Description</span>
+                <textarea value={cityForm.description} onChange={e => setCityForm(f => ({ ...f, description: e.target.value }))} rows={3}
+                  style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 12, fontFamily: "inherit", resize: "vertical" }} />
+              </label>
+              <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <span style={{ fontSize: 10, color: DIM, letterSpacing: 1, textTransform: "uppercase" }}>Nearby Destinations (comma-separated slugs)</span>
+                <input type="text" value={cityForm.nearbyDestinations} onChange={e => setCityForm(f => ({ ...f, nearbyDestinations: e.target.value }))} placeholder="e.g. new-york, boston"
+                  style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 12, fontFamily: "inherit" }} />
+              </label>
+              <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <span style={{ fontSize: 10, color: DIM, letterSpacing: 1, textTransform: "uppercase" }}>Related Cities (comma-separated slugs)</span>
+                <input type="text" value={cityForm.relatedCities} onChange={e => setCityForm(f => ({ ...f, relatedCities: e.target.value }))} placeholder="e.g. los-angeles, miami"
+                  style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "8px 10px", color: TEXT, fontSize: 12, fontFamily: "inherit" }} />
+              </label>
+              <div style={{ gridColumn: "1 / -1", display: "flex", gap: 12, alignItems: "center", marginTop: 12 }}>
+                <button type="submit" disabled={cityFormStatus === "saving"}
+                  style={{ background: `linear-gradient(135deg,${GOLD},#8a6f28)`, border: "none", borderRadius: 8, padding: "10px 28px", color: "#090807", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                  {cityFormStatus === "saving" ? "Saving..." : "Add City"}
+                </button>
+                {cityFormStatus && cityFormStatus !== "saving" && (
+                  <span style={{ fontSize: 12, color: cityFormStatus.startsWith("Error") ? "#ef4444" : "#22c55e" }}>{cityFormStatus}</span>
+                )}
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Rankings tab */}
+        {tab === "rankings" && (
+          <div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 10, color: DIM, letterSpacing: 1, textTransform: "uppercase", display: "block", marginBottom: 6 }}>Select City</label>
+              <select value={rankCity} onChange={e => setRankCity(e.target.value)}
+                style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "8px 14px", color: TEXT, fontSize: 12, fontFamily: "inherit", minWidth: 200 }}>
+                <option value="">Choose a city...</option>
+                {rankCities.map(c => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+              </select>
+            </div>
+            {rankCity && rankGyms.length > 0 && (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      <th style={thStyle}>Gym</th>
+                      {["equipment", "cleanliness", "amenities", "staff", "atmosphere", "value", "recovery", "classes"].map(k => (
+                        <th key={k} style={{ ...thStyle, textAlign: "center", fontSize: 8 }}>{k.slice(0, 5).toUpperCase()}</th>
+                      ))}
+                      <th style={thStyle}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rankGyms.map(g => {
+                      const scores = g.scores || {};
+                      return (
+                        <tr key={g.id}>
+                          <td style={{ ...tdStyle, color: TEXT, fontWeight: 500, whiteSpace: "nowrap" }}>{g.name}</td>
+                          {["equipment", "cleanliness", "amenities", "staff", "atmosphere", "value", "recovery", "classes"].map(k => (
+                            <td key={k} style={{ ...tdStyle, textAlign: "center", padding: "4px 2px" }}>
+                              <input type="number" min="0" max="100" value={scores[k] || 0}
+                                onChange={e => {
+                                  const val = Math.min(100, Math.max(0, Number(e.target.value)));
+                                  setRankGyms(prev => prev.map(rg =>
+                                    rg.id === g.id ? { ...rg, scores: { ...rg.scores, [k]: val } } : rg
+                                  ));
+                                }}
+                                style={{ background: "rgba(255,255,255,0.06)", border: `1px solid ${BORDER}`, borderRadius: 4, padding: "4px", color: GOLD, fontSize: 11, width: 44, textAlign: "center", fontFamily: "inherit" }} />
+                            </td>
+                          ))}
+                          <td style={tdStyle}>
+                            <button onClick={() => handleScoreUpdate(g.id, g.slug, rankCity, g.scores)}
+                              disabled={rankSaving === g.id}
+                              style={{ background: "rgba(200,168,75,0.15)", border: `1px solid rgba(200,168,75,0.3)`, borderRadius: 4, padding: "4px 10px", color: GOLD, fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>
+                              {rankSaving === g.id ? "..." : "Save"}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {rankCity && rankGyms.length === 0 && (
+              <p style={{ color: DIM, fontSize: 13 }}>No gyms found for this city.</p>
+            )}
           </div>
         )}
 

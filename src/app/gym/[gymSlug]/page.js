@@ -1,13 +1,17 @@
-import { GYMS, getGymBySlug, getSimilarGyms, getGymsByCity } from "../../../data/gyms";
+import { getGymBySlug, getSimilarGyms, getGymsByCity, getAllGymSlugs } from "@/lib/data";
 import GymProfileClient from "./GymProfileClient";
+
+export const revalidate = 86400;
+export const dynamicParams = true;
 
 const SITE_URL = "https://www.ironpassport.com";
 
 /**
  * Generate static params for all gym profile pages.
  */
-export function generateStaticParams() {
-  return GYMS.map((g) => ({ gymSlug: g.slug }));
+export async function generateStaticParams() {
+  const slugs = await getAllGymSlugs();
+  return slugs.map((slug) => ({ gymSlug: slug }));
 }
 
 /**
@@ -15,7 +19,7 @@ export function generateStaticParams() {
  */
 export async function generateMetadata({ params }) {
   const { gymSlug } = await params;
-  const gym = getGymBySlug(gymSlug);
+  const gym = await getGymBySlug(gymSlug);
   if (!gym) {
     return { title: "Gym Not Found | Iron Passport" };
   }
@@ -81,7 +85,7 @@ function buildStructuredData(gym) {
   if (gym.overallScore) {
     business.aggregateRating = {
       "@type": "AggregateRating",
-      ratingValue: (gym.overallScore / 20).toFixed(1), // convert 0-100 to 0-5
+      ratingValue: (gym.overallScore / 20).toFixed(1),
       bestRating: "5",
       worstRating: "1",
       ratingCount: 1,
@@ -104,7 +108,7 @@ function buildStructuredData(gym) {
         "@type": "ListItem",
         position: 2,
         name: `Best Gyms in ${gym.city}`,
-        item: `${SITE_URL}/city/${gym.citySlug}/`,
+        item: `${SITE_URL}/best-gyms/${gym.citySlug}/`,
       },
       {
         "@type": "ListItem",
@@ -172,7 +176,7 @@ function buildStructuredData(gym) {
  */
 export default async function GymProfilePage({ params }) {
   const { gymSlug } = await params;
-  const gym = getGymBySlug(gymSlug);
+  const gym = await getGymBySlug(gymSlug);
 
   if (!gym) {
     return (
@@ -180,15 +184,15 @@ export default async function GymProfilePage({ params }) {
         <div style={{ textAlign: "center", color: "#f0ebe0" }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>404</div>
           <h1 style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: 28, marginBottom: 8 }}>Gym Not Found</h1>
-          <p style={{ fontSize: 14, color: "rgba(255,255,255,0.5)" }}>This gym page doesn't exist yet.</p>
+          <p style={{ fontSize: 14, color: "rgba(255,255,255,0.5)" }}>This gym page doesn&apos;t exist yet.</p>
           <a href="/" style={{ color: "#c8a84b", fontSize: 14, marginTop: 16, display: "inline-block" }}>Back to Iron Passport</a>
         </div>
       </div>
     );
   }
 
-  const similarGyms = getSimilarGyms(gym);
-  const cityGyms = getGymsByCity(gym.city);
+  const similarGyms = await getSimilarGyms(gym);
+  const cityGyms = await getGymsByCity(gym.citySlug);
   const structuredData = buildStructuredData(gym);
 
   return (
