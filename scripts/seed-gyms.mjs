@@ -108,10 +108,17 @@ Use real gym names. Include real contact info where known. Differentiate scores.
   return JSON.parse(text.replace(/```json|```/g, "").trim());
 }
 
+function makeSlug(name, city) {
+  const n = (name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  const c = (city || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  return `${n}-${c}`;
+}
+
 async function upsertGyms(gyms) {
   let count = 0;
   for (const g of gyms) {
     const { error } = await supabase.from("gyms").upsert({
+      slug: makeSlug(g.name, g.city),
       name: g.name,
       type: g.type,
       address: g.address,
@@ -127,6 +134,11 @@ async function upsertGyms(gyms) {
       contact_website: g.contactWebsite || null,
       contact_instagram: g.contactInstagram || null,
       scores: g.scores || null,
+      amenities: g.amenities || null,
+      latitude: g.latitude || null,
+      longitude: g.longitude || null,
+      photos: g.photos || null,
+      data_source: "seed",
       updated_at: new Date().toISOString(),
     }, { onConflict: "name,address" });
     if (error) console.error(`  ✗ ${g.name}: ${error.message}`);

@@ -12,6 +12,30 @@
 
 const CURRENT_YEAR = new Date().getFullYear();
 
+/**
+ * Data freshness rules.
+ * - Gym data older than STALE_DAYS without verification is considered stale.
+ * - Verified data has a longer window (REVERIFY_DAYS) before needing refresh.
+ * - Static city pages are regenerated at build time; dynamic pages should
+ *   revalidate every REVALIDATE_SECONDS to pick up DB changes.
+ */
+export const FRESHNESS = {
+  STALE_DAYS: 90,           // Unverified data goes stale after 90 days
+  REVERIFY_DAYS: 180,       // Verified data needs re-check after 180 days
+  REVALIDATE_SECONDS: 86400, // ISR: re-render pages at most once per day (86400s)
+};
+
+/** Check if a gym record is stale based on updated_at / verified_at */
+export function isGymStale(gym) {
+  const now = Date.now();
+  const staleCutoff = now - FRESHNESS.STALE_DAYS * 86400000;
+  const reverifyCutoff = now - FRESHNESS.REVERIFY_DAYS * 86400000;
+  const updatedAt = gym.updated_at ? new Date(gym.updated_at).getTime() : 0;
+  const verifiedAt = gym.verified_at ? new Date(gym.verified_at).getTime() : 0;
+  if (verifiedAt && verifiedAt > reverifyCutoff) return false;
+  return updatedAt < staleCutoff;
+}
+
 /** Converts a city name to a URL slug */
 export function cityToSlug(name) {
   return name
@@ -28,13 +52,25 @@ export function slugToCity(slug) {
     .join(" ");
 }
 
-/** Generate a gym profile page path from gym name */
-export function gymToPath(gym) {
-  const slug = gym.name
+/**
+ * Generate a stable, unique slug for a gym from name + city.
+ * Matches the DB slug format: "gym-name-city-name"
+ */
+export function gymSlug(gym) {
+  const name = (gym.name || "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
-  return `/gym/${slug}`;
+  const city = (gym.city || "unknown")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+  return `${name}-${city}`;
+}
+
+/** Generate a gym profile page path from gym data */
+export function gymToPath(gym) {
+  return `/gym/${gymSlug(gym)}`;
 }
 
 /** Scoring criteria with weights — matches IronPassport.jsx */
