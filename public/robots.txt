@@ -1,0 +1,10 @@
+# Iron Passport – robots.txt
+# https://ironpassport.com
+
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /*?*  # Prevent indexing query-param variations
+
+# Sitemap
+Sitemap: https://ironpassport.com/sitemap.xml

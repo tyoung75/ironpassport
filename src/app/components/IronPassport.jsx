@@ -1829,9 +1829,12 @@ export default function App() {
   const searchesLeft = tier === "pro" ? "∞" : Math.max(0, TIERS[tier].searches - searchCount);
 
   return (
-    <div style={{ "--serif": "'Cormorant Garamond','Palatino Linotype',Georgia,serif", minHeight: "100vh", background: "#090807", color: "#f0ebe0", fontFamily: "'DM Sans',system-ui,sans-serif" }}>
+    <div style={{ "--serif": "'Cormorant Garamond','Palatino Linotype',Georgia,serif", minHeight: "100vh", background: "#090807", color: "#f0ebe0", fontFamily: "'DM Sans',system-ui,sans-serif", display: "flex", flexDirection: "column" }}>
+      {/* Preload fonts for better CWV (replaces @import which blocks render) */}
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap');
         *{box-sizing:border-box;margin:0;padding:0}
         ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:rgba(200,168,75,0.3);border-radius:2px}
         @keyframes spin{to{transform:rotate(360deg)}}
@@ -1858,12 +1861,15 @@ export default function App() {
         .battle-slide{animation:battleSlide 0.35s ease both}
         .cta-green{background:linear-gradient(135deg,#34d399,#059669)!important;color:#0a0806!important}
         .cta-orange{background:linear-gradient(135deg,#f97316,#c2410c)!important;color:#fff!important}
+        .footer-link{color:rgba(255,255,255,0.35);text-decoration:none;font-size:11px;transition:color 0.2s}
+        .footer-link:hover{color:#c8a84b}
       `}</style>
 
       {/* Nav */}
-      <nav style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "0 20px", height: 54, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <button onClick={() => setMode(null)} style={{ display: "flex", alignItems: "center", gap: 9, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-          <div style={{ width: 26, height: 26, background: "linear-gradient(135deg,#c8a84b,#8a6f28)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>✈</div>
+      <header>
+      <nav aria-label="Main navigation" style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "0 20px", height: 54, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <button onClick={() => setMode(null)} aria-label="Go to homepage" style={{ display: "flex", alignItems: "center", gap: 9, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+          <div style={{ width: 26, height: 26, background: "linear-gradient(135deg,#c8a84b,#8a6f28)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }} aria-hidden="true">✈</div>
           <span style={{ fontFamily: "var(--serif)", fontSize: 19, color: "#f0ebe0" }}>Iron</span>
           <span style={{ fontFamily: "var(--serif)", fontSize: 19, color: "#c8a84b", marginLeft: -2 }}>Passport</span>
         </button>
@@ -1907,8 +1913,9 @@ export default function App() {
           )}
         </div>
       </nav>
+      </header>
 
-      <div style={{ maxWidth: 740, margin: "0 auto", padding: "0 20px 80px" }}>
+      <main style={{ maxWidth: 740, margin: "0 auto", padding: "0 20px 80px", flex: 1 }}>
 
         {/* Home */}
         {mode === null && (
@@ -2075,7 +2082,47 @@ export default function App() {
             />
           </div>
         )}
-      </div>
+      </main>
+
+      {/* Footer */}
+      <footer style={{ borderTop: "1px solid rgba(255,255,255,0.05)", padding: "32px 20px 40px", marginTop: "auto" }}>
+        <div style={{ maxWidth: 740, margin: "0 auto" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 28, marginBottom: 24 }}>
+            {/* Brand */}
+            <div>
+              <button onClick={() => setMode(null)} style={{ display: "flex", alignItems: "center", gap: 7, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: 8 }}>
+                <div style={{ width: 20, height: 20, background: "linear-gradient(135deg,#c8a84b,#8a6f28)", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10 }} aria-hidden="true">✈</div>
+                <span style={{ fontFamily: "var(--serif)", fontSize: 15, color: "#f0ebe0" }}>Iron</span>
+                <span style={{ fontFamily: "var(--serif)", fontSize: 15, color: "#c8a84b", marginLeft: -2 }}>Passport</span>
+              </button>
+              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", maxWidth: 220, lineHeight: 1.6 }}>Find, compare, and review the best gyms wherever you travel.</p>
+            </div>
+            {/* Features */}
+            <div>
+              <div style={{ fontSize: 9, color: "#c8a84b", letterSpacing: 2, textTransform: "uppercase", marginBottom: 10 }}>Features</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <button onClick={() => setMode("finder")} className="footer-link" style={{ background: "none", border: "none", cursor: "pointer", textAlign: "left", fontFamily: "inherit", padding: 0, color: "rgba(255,255,255,0.35)", fontSize: 11 }}>Gym Finder</button>
+                <button onClick={() => setMode("discovery")} className="footer-link" style={{ background: "none", border: "none", cursor: "pointer", textAlign: "left", fontFamily: "inherit", padding: 0, color: "rgba(255,255,255,0.35)", fontSize: 11 }}>Destination Discovery</button>
+                <button onClick={() => setMode("battle")} className="footer-link" style={{ background: "none", border: "none", cursor: "pointer", textAlign: "left", fontFamily: "inherit", padding: 0, color: "rgba(255,255,255,0.35)", fontSize: 11 }}>Gym Compare</button>
+                {tier !== "anonymous" && <button onClick={() => setMode("passport")} className="footer-link" style={{ background: "none", border: "none", cursor: "pointer", textAlign: "left", fontFamily: "inherit", padding: 0, color: "rgba(255,255,255,0.35)", fontSize: 11 }}>Gym Passport</button>}
+              </div>
+            </div>
+            {/* Popular Searches */}
+            <div>
+              <div style={{ fontSize: 9, color: "#c8a84b", letterSpacing: 2, textTransform: "uppercase", marginBottom: 10 }}>Popular Searches</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {["New York", "Las Vegas", "Miami", "Bali"].map(city => (
+                  <button key={city} onClick={() => { setMode("finder"); }} className="footer-link" style={{ background: "none", border: "none", cursor: "pointer", textAlign: "left", fontFamily: "inherit", padding: 0, color: "rgba(255,255,255,0.35)", fontSize: 11 }}>Best gyms in {city}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div style={{ borderTop: "1px solid rgba(255,255,255,0.04)", paddingTop: 16, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.18)" }}>&copy; {new Date().getFullYear()} Iron Passport. All rights reserved.</div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.18)" }}>AI-powered gym rankings for travelers</div>
+          </div>
+        </div>
+      </footer>
 
       {showSignUp && (
         <SignUpModal
