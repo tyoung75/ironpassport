@@ -1,0 +1,16 @@
+{
+  "name": "Iron Passport",
+  "short_name": "IronPassport",
+  "description": "Find the best gyms wherever you travel",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#090807",
+  "theme_color": "#090807",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ]
+}
