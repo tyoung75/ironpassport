@@ -1763,7 +1763,11 @@ function GymPassport({ tier, userEmail, onBack, homeGym, onSetHomeGym, onClearHo
 
 // ─── Root App ─────────────────────────────────────────────────────────────────
 export default function App() {
-  const [mode,        setMode]        = useState(null);        // null | "finder" | "discovery" | "passport" | "battle"
+  const [mode,        setModeInternal] = useState(null);        // null | "finder" | "discovery" | "passport" | "battle"
+  const setMode = (m) => {
+    setModeInternal(m);
+    window.dispatchEvent(new CustomEvent("ip:modechange", { detail: { mode: m } }));
+  };
   const [tier,        setTier]        = useState("anonymous"); // anonymous | free | pro
   const [searchCount, setSearchCount] = useState(0);
   const [userEmail,   setUserEmail]   = useState("");

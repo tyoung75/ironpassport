@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { buildMetadata } from "@/lib/seo";
+import PageTracker from "./components/PageTracker";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,6 +32,7 @@ export default function RootLayout({ children }) {
         <meta name="theme-color" content="#090807" />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
+        <PageTracker />
         {children}
         {/* Server-rendered fallback content for SEO crawlers that don't execute JS */}
         <noscript>

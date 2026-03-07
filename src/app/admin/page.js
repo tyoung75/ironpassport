@@ -63,6 +63,19 @@ export default function AdminPage() {
   const [battlesCount, setBattlesCount] = useState(0);
   const [battlesPage, setBattlesPage] = useState(1);
 
+  // Analytics state
+  const [analyticsStats, setAnalyticsStats] = useState({});
+  const [dailyViews, setDailyViews] = useState([]);
+  const [topReferrers, setTopReferrers] = useState([]);
+  const [topPages, setTopPages] = useState([]);
+  const [analyticsDays, setAnalyticsDays] = useState(7);
+
+  // SEO state
+  const [seoData, setSeoData] = useState(null);
+  const [seoError, setSeoError] = useState(null);
+  const [seoLoading, setSeoLoading] = useState(false);
+  const [seoDays, setSeoDays] = useState(7);
+
   // Auth check
   useEffect(() => {
     try {
@@ -156,6 +169,89 @@ export default function AdminPage() {
     }
   }, [authorized, tab, battlesPage]);
 
+  // Load analytics data
+  useEffect(() => {
+    if (!authorized || tab !== "analytics") return;
+    (async () => {
+      const since = new Date();
+      since.setDate(since.getDate() - analyticsDays);
+      const sinceStr = since.toISOString();
+      const todayStr = new Date().toISOString().slice(0, 10);
+
+      const { data: rows } = await getSupabase()
+        .from("page_views")
+        .select("path, referrer, session_id, created_at")
+        .gte("created_at", sinceStr)
+        .order("created_at", { ascending: false })
+        .limit(5000);
+
+      if (!rows) return;
+
+      // Stats
+      const uniqueSessions = new Set(rows.map(r => r.session_id)).size;
+      const todayViews = rows.filter(r => r.created_at?.startsWith(todayStr)).length;
+      const refCounts = {};
+      rows.forEach(r => {
+        if (!r.referrer) return;
+        try {
+          const host = new URL(r.referrer).hostname.replace(/^www\./, "");
+          refCounts[host] = (refCounts[host] || 0) + 1;
+        } catch {}
+      });
+      const topRef = Object.entries(refCounts).sort((a, b) => b[1] - a[1])[0];
+      setAnalyticsStats({ total: rows.length, unique: uniqueSessions, today: todayViews, topReferrer: topRef ? topRef[0] : "Direct" });
+
+      // Daily views
+      const dayCounts = {};
+      rows.forEach(r => {
+        const day = r.created_at?.slice(0, 10);
+        if (day) dayCounts[day] = (dayCounts[day] || 0) + 1;
+      });
+      const days = [];
+      for (let i = analyticsDays - 1; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const key = d.toISOString().slice(0, 10);
+        days.push({ date: key, label: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }), count: dayCounts[key] || 0 });
+      }
+      setDailyViews(days);
+
+      // Top referrers
+      const refSorted = Object.entries(refCounts).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([host, count]) => ({ host, count }));
+      setTopReferrers(refSorted);
+
+      // Top pages
+      const pageCounts = {};
+      rows.forEach(r => { pageCounts[r.path] = (pageCounts[r.path] || 0) + 1; });
+      const pageSorted = Object.entries(pageCounts).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([path, count]) => ({ path, count }));
+      setTopPages(pageSorted);
+    })();
+  }, [authorized, tab, analyticsDays]);
+
+  // Load SEO data
+  useEffect(() => {
+    if (!authorized || tab !== "seo") return;
+    (async () => {
+      setSeoLoading(true);
+      setSeoError(null);
+      try {
+        const res = await fetch("https://iron-passport-worker.tylerjyoung5.workers.dev/gsc", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ days: seoDays }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        setSeoData(data);
+      } catch (err) {
+        setSeoError(err.message);
+        setSeoData(null);
+      } finally {
+        setSeoLoading(false);
+      }
+    })();
+  }, [authorized, tab, seoDays]);
+
   if (authorized === null) return null;
 
   if (!authorized) {
@@ -173,7 +269,7 @@ export default function AdminPage() {
   const fmt = (d) => d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
   const fmtDate = (d) => d || "—";
 
-  const tabs = ["users", "searches", "gyms", "stamps", "battles"];
+  const tabs = ["users", "searches", "gyms", "stamps", "battles", "analytics", "seo"];
 
   return (
     <div style={{ "--serif": "'Cormorant Garamond','Palatino Linotype',Georgia,serif", minHeight: "100vh", background: BG, color: TEXT, fontFamily: "'DM Sans',system-ui,sans-serif" }}>
@@ -383,6 +479,189 @@ export default function AdminPage() {
               </table>
             </div>
             <Pagination page={battlesPage} setPage={setBattlesPage} total={battlesCount} />
+          </div>
+        )}
+
+        {/* Analytics tab */}
+        {tab === "analytics" && (
+          <div>
+            {/* Day toggle */}
+            <div style={{ display: "flex", gap: 6, marginBottom: 20 }}>
+              {[7, 30].map(d => (
+                <button key={d} onClick={() => setAnalyticsDays(d)} style={{
+                  background: analyticsDays === d ? "rgba(200,168,75,0.15)" : CARD_BG,
+                  border: `1px solid ${analyticsDays === d ? "rgba(200,168,75,0.4)" : BORDER}`,
+                  borderRadius: 6, padding: "5px 14px", cursor: "pointer",
+                  color: analyticsDays === d ? GOLD : DIM, fontSize: 11, fontFamily: "inherit",
+                }}>{d} days</button>
+              ))}
+            </div>
+
+            {/* Stat cards */}
+            <div style={{ display: "flex", gap: 12, marginBottom: 28, flexWrap: "wrap" }}>
+              <StatCard label="Total Page Views" value={analyticsStats.total} />
+              <StatCard label="Unique Visitors" value={analyticsStats.unique} />
+              <StatCard label="Views Today" value={analyticsStats.today} />
+              <StatCard label="Top Referrer" value={analyticsStats.topReferrer} />
+            </div>
+
+            {/* Bar chart */}
+            {dailyViews.length > 0 && (() => {
+              const maxCount = Math.max(...dailyViews.map(d => d.count), 1);
+              return (
+                <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 12, padding: "20px 20px 14px", marginBottom: 28 }}>
+                  <div style={{ fontSize: 9, color: DIM, letterSpacing: 3, textTransform: "uppercase", marginBottom: 16 }}>Page Views Over Time</div>
+                  <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 120 }}>
+                    {dailyViews.map((d, i) => (
+                      <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                        <div style={{ fontSize: 9, color: DIM }}>{d.count || ""}</div>
+                        <div style={{
+                          width: "100%", maxWidth: 32,
+                          height: Math.max(2, (d.count / maxCount) * 90),
+                          background: `linear-gradient(180deg, ${GOLD}, #8a6f28)`,
+                          borderRadius: "3px 3px 0 0",
+                          transition: "height 0.3s ease",
+                        }} />
+                        <div style={{ fontSize: 8, color: DIM, whiteSpace: "nowrap" }}>{d.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Two-column grid: referrers + pages */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              {/* Traffic Sources */}
+              <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 20 }}>
+                <div style={{ fontSize: 9, color: DIM, letterSpacing: 3, textTransform: "uppercase", marginBottom: 14 }}>Traffic Sources</div>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      <th style={thStyle}>Source</th>
+                      <th style={{ ...thStyle, textAlign: "right" }}>Views</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topReferrers.map((r, i) => (
+                      <tr key={i}>
+                        <td style={tdStyle}>{r.host}</td>
+                        <td style={{ ...tdStyle, textAlign: "right", color: GOLD }}>{r.count}</td>
+                      </tr>
+                    ))}
+                    {topReferrers.length === 0 && (
+                      <tr><td colSpan={2} style={{ ...tdStyle, textAlign: "center", padding: 20 }}>No referrer data yet</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Top Pages */}
+              <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 20 }}>
+                <div style={{ fontSize: 9, color: DIM, letterSpacing: 3, textTransform: "uppercase", marginBottom: 14 }}>Top Pages</div>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      <th style={thStyle}>Page</th>
+                      <th style={{ ...thStyle, textAlign: "right" }}>Views</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topPages.map((p, i) => (
+                      <tr key={i}>
+                        <td style={tdStyle}>{p.path}</td>
+                        <td style={{ ...tdStyle, textAlign: "right", color: GOLD }}>{p.count}</td>
+                      </tr>
+                    ))}
+                    {topPages.length === 0 && (
+                      <tr><td colSpan={2} style={{ ...tdStyle, textAlign: "center", padding: 20 }}>No page data yet</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* SEO tab */}
+        {tab === "seo" && (
+          <div>
+            {/* Day toggle */}
+            <div style={{ display: "flex", gap: 6, marginBottom: 20 }}>
+              {[7, 28].map(d => (
+                <button key={d} onClick={() => setSeoDays(d)} style={{
+                  background: seoDays === d ? "rgba(200,168,75,0.15)" : CARD_BG,
+                  border: `1px solid ${seoDays === d ? "rgba(200,168,75,0.4)" : BORDER}`,
+                  borderRadius: 6, padding: "5px 14px", cursor: "pointer",
+                  color: seoDays === d ? GOLD : DIM, fontSize: 11, fontFamily: "inherit",
+                }}>{d} days</button>
+              ))}
+            </div>
+
+            {seoLoading && (
+              <div style={{ textAlign: "center", padding: 40, color: DIM, fontSize: 13 }}>Loading SEO data...</div>
+            )}
+
+            {seoError && !seoData && !seoLoading && (
+              <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 12, padding: "32px 28px" }}>
+                <div style={{ fontFamily: "var(--serif)", fontSize: 22, color: TEXT, marginBottom: 12 }}>Google Search Console Setup</div>
+                <p style={{ fontSize: 12, color: DIM, lineHeight: 1.8, marginBottom: 20 }}>
+                  To see SEO data, connect Google Search Console via the Cloudflare Worker proxy.
+                </p>
+                <ol style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", lineHeight: 2.2, paddingLeft: 20 }}>
+                  <li>Create a GCP service account with Search Console API access</li>
+                  <li>Add the service account email as a user in your Search Console property</li>
+                  <li>Store the service account JSON key in your Cloudflare Worker secrets as <code style={{ background: "rgba(255,255,255,0.06)", padding: "2px 6px", borderRadius: 3, fontSize: 11 }}>GSC_SERVICE_ACCOUNT</code></li>
+                  <li>Store your Search Console site URL as <code style={{ background: "rgba(255,255,255,0.06)", padding: "2px 6px", borderRadius: 3, fontSize: 11 }}>GSC_SITE_URL</code></li>
+                  <li>Deploy the <code style={{ background: "rgba(255,255,255,0.06)", padding: "2px 6px", borderRadius: 3, fontSize: 11 }}>POST /gsc</code> endpoint on your Cloudflare Worker</li>
+                </ol>
+                <div style={{ marginTop: 16, fontSize: 10, color: DIM }}>Error: {seoError}</div>
+              </div>
+            )}
+
+            {seoData && !seoLoading && (
+              <>
+                {/* SEO stat cards */}
+                <div style={{ display: "flex", gap: 12, marginBottom: 28, flexWrap: "wrap" }}>
+                  <StatCard label="Clicks" value={seoData.totals?.clicks ?? 0} />
+                  <StatCard label="Impressions" value={seoData.totals?.impressions ?? 0} />
+                  <StatCard label="CTR" value={seoData.totals?.ctr != null ? (seoData.totals.ctr * 100).toFixed(1) + "%" : "—"} />
+                  <StatCard label="Avg Position" value={seoData.totals?.position != null ? seoData.totals.position.toFixed(1) : "—"} />
+                </div>
+
+                {/* Search queries table */}
+                <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 20 }}>
+                  <div style={{ fontSize: 9, color: DIM, letterSpacing: 3, textTransform: "uppercase", marginBottom: 14 }}>Search Queries</div>
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr>
+                          <th style={thStyle}>Query</th>
+                          <th style={{ ...thStyle, textAlign: "right" }}>Clicks</th>
+                          <th style={{ ...thStyle, textAlign: "right" }}>Impressions</th>
+                          <th style={{ ...thStyle, textAlign: "right" }}>CTR</th>
+                          <th style={{ ...thStyle, textAlign: "right" }}>Position</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(seoData.rows || []).map((r, i) => (
+                          <tr key={i}>
+                            <td style={tdStyle}>{r.keys?.[0] || "—"}</td>
+                            <td style={{ ...tdStyle, textAlign: "right", color: GOLD }}>{r.clicks}</td>
+                            <td style={{ ...tdStyle, textAlign: "right" }}>{r.impressions}</td>
+                            <td style={{ ...tdStyle, textAlign: "right" }}>{(r.ctr * 100).toFixed(1)}%</td>
+                            <td style={{ ...tdStyle, textAlign: "right" }}>{r.position.toFixed(1)}</td>
+                          </tr>
+                        ))}
+                        {(!seoData.rows || seoData.rows.length === 0) && (
+                          <tr><td colSpan={5} style={{ ...tdStyle, textAlign: "center", padding: 24 }}>No search query data</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
