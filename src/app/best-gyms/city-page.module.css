@@ -1,0 +1,468 @@
+/* City SEO Page Styles */
+
+.page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 20px 60px;
+  color: #ededed;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Breadcrumbs */
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 0;
+  font-size: 14px;
+  color: #94a3b8;
+}
+
+.breadcrumbs a {
+  color: #c8a84b;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.breadcrumbs a:hover {
+  color: #FFD700;
+  text-decoration: underline;
+}
+
+.breadcrumbSep {
+  color: #475569;
+}
+
+/* Hero / Header */
+.hero {
+  padding: 32px 0 24px;
+  border-bottom: 1px solid #1e293b;
+  margin-bottom: 32px;
+}
+
+.h1 {
+  font-size: 32px;
+  font-weight: 700;
+  color: #FFD700;
+  margin-bottom: 12px;
+  line-height: 1.2;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #94a3b8;
+  margin-bottom: 16px;
+}
+
+.intro {
+  font-size: 16px;
+  line-height: 1.7;
+  color: #cbd5e1;
+}
+
+/* Section headers */
+.sectionTitle {
+  font-size: 22px;
+  font-weight: 600;
+  color: #ededed;
+  margin: 40px 0 20px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #1e293b;
+}
+
+/* Gym Card */
+.gymCard {
+  background: #111827;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+  transition: border-color 0.2s;
+}
+
+.gymCard:hover {
+  border-color: #334155;
+}
+
+.gymHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  gap: 16px;
+}
+
+.gymRank {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.gymName {
+  font-size: 20px;
+  font-weight: 600;
+  color: #ededed;
+  margin-bottom: 4px;
+}
+
+.gymNameLink {
+  color: #ededed;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.gymNameLink:hover {
+  color: #FFD700;
+}
+
+.gymType {
+  font-size: 13px;
+  color: #94a3b8;
+  margin-bottom: 2px;
+}
+
+.gymNeighborhood {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.gymScore {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.gymScoreValue {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.gymScoreLabel {
+  font-size: 10px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+
+.gymDescription {
+  font-size: 15px;
+  line-height: 1.6;
+  color: #94a3b8;
+  margin-bottom: 16px;
+}
+
+/* Scores Grid */
+.scoresGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 600px) {
+  .scoresGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.scoreItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px;
+  background: #0a0f1a;
+  border-radius: 8px;
+}
+
+.scoreItemLabel {
+  font-size: 10px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 4px;
+}
+
+.scoreItemValue {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* Highlights */
+.highlights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.highlight {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #0a0f1a;
+  border-radius: 20px;
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+.highlightIcon {
+  font-size: 14px;
+}
+
+.highlightValue {
+  color: #cbd5e1;
+  font-weight: 500;
+}
+
+/* Pass Info */
+.passInfo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #0a0f1a;
+  border-radius: 8px;
+  border-left: 3px solid #c8a84b;
+}
+
+.passItem {
+  font-size: 14px;
+  color: #94a3b8;
+}
+
+.passPrice {
+  color: #FFD700;
+  font-weight: 600;
+}
+
+.passNotes {
+  font-size: 13px;
+  color: #64748b;
+  font-style: italic;
+}
+
+/* Tags */
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.tag {
+  padding: 4px 10px;
+  background: #1e293b;
+  border-radius: 12px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+/* Summary Boxes */
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+@media (max-width: 600px) {
+  .summaryGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.summaryBox {
+  background: #111827;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.summaryBoxTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #c8a84b;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.summaryBoxText {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #94a3b8;
+}
+
+/* FAQ Section */
+.faqSection {
+  margin-top: 40px;
+}
+
+.faqItem {
+  border-bottom: 1px solid #1e293b;
+  padding: 20px 0;
+}
+
+.faqItem:last-child {
+  border-bottom: none;
+}
+
+.faqQuestion {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ededed;
+  margin-bottom: 8px;
+}
+
+.faqAnswer {
+  font-size: 15px;
+  line-height: 1.7;
+  color: #94a3b8;
+}
+
+/* Internal Links */
+.linksSection {
+  margin-top: 40px;
+  padding: 24px;
+  background: #111827;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+}
+
+.linksTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #c8a84b;
+  margin-bottom: 16px;
+}
+
+.linksGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.linkCard {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #0a0f1a;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  color: #cbd5e1;
+  text-decoration: none;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.linkCard:hover {
+  border-color: #c8a84b;
+  color: #FFD700;
+}
+
+.linkCardCount {
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* CTA */
+.ctaSection {
+  margin-top: 40px;
+  padding: 32px;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border: 1px solid #c8a84b;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.ctaTitle {
+  font-size: 20px;
+  font-weight: 600;
+  color: #FFD700;
+  margin-bottom: 8px;
+}
+
+.ctaText {
+  font-size: 15px;
+  color: #94a3b8;
+  margin-bottom: 16px;
+}
+
+.ctaButton {
+  display: inline-block;
+  padding: 12px 28px;
+  background: #c8a84b;
+  color: #0a0a0a;
+  font-weight: 600;
+  font-size: 15px;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.ctaButton:hover {
+  background: #FFD700;
+}
+
+/* All cities grid (index page) */
+.cityGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.cityCard {
+  display: block;
+  padding: 20px;
+  background: #111827;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.cityCard:hover {
+  border-color: #c8a84b;
+  transform: translateY(-2px);
+}
+
+.cityCardName {
+  font-size: 18px;
+  font-weight: 600;
+  color: #ededed;
+  margin-bottom: 4px;
+}
+
+.cityCardCountry {
+  font-size: 13px;
+  color: #94a3b8;
+  margin-bottom: 8px;
+}
+
+.cityCardGyms {
+  font-size: 13px;
+  color: #c8a84b;
+}
+
+/* Region groups */
+.regionGroup {
+  margin-bottom: 32px;
+}
+
+.regionTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #c8a84b;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #1e293b;
+}

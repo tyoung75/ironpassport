@@ -76,6 +76,12 @@ const FINDER_PROMPTS = [
 ];
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
+function makeSlug(name, city) {
+  const n = (name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  const c = (city || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  return `${n}-${c}`;
+}
+
 function snakeToCamelGym(g) {
   return {
     name: g.name, type: g.type, address: g.address,
@@ -691,6 +697,7 @@ Use real gym names. Include real contact info where known. Differentiate scores.
           for (let r = 0; r < parsed.length; r++) {
             const g = parsed[r];
             const { data: gRow } = await getSupabase()?.from("gyms").upsert({
+              slug: makeSlug(g.name, g.city || dest),
               name: g.name, type: g.type, address: g.address,
               neighborhood: g.neighborhood || null, city: g.city || dest, country: g.country || null,
               description: g.description || g.whyRecommended || null,
@@ -698,7 +705,7 @@ Use real gym names. Include real contact info where known. Differentiate scores.
               pass_notes: g.passNotes || null,
               contact_phone: g.contactPhone || null, contact_email: g.contactEmail || null,
               contact_website: g.contactWebsite || null, contact_instagram: g.contactInstagram || null,
-              scores: g.scores || null, updated_at: new Date().toISOString(),
+              scores: g.scores || null, data_source: "api", updated_at: new Date().toISOString(),
             }, { onConflict: "name,address" }).select("id").single();
             if (gRow) await getSupabase()?.from("search_gyms").insert({ search_id: sRow.id, gym_id: gRow.id, rank: r + 1 });
           }
@@ -849,6 +856,7 @@ Use real gym names. Include real contact info where known. Differentiate scores.
           for (let r = 0; r < allGyms.length; r++) {
             const g = allGyms[r];
             const { data: gRow } = await getSupabase()?.from("gyms").upsert({
+              slug: makeSlug(g.name, g.city),
               name: g.name, type: g.type, address: g.address,
               neighborhood: null, city: g.city || null, country: g.country || null,
               description: g.whyRecommended || null,
@@ -856,7 +864,7 @@ Use real gym names. Include real contact info where known. Differentiate scores.
               pass_notes: g.passNotes || null,
               contact_phone: g.contactPhone || null, contact_email: g.contactEmail || null,
               contact_website: g.contactWebsite || null, contact_instagram: g.contactInstagram || null,
-              scores: g.scores || null, updated_at: new Date().toISOString(),
+              scores: g.scores || null, data_source: "api", updated_at: new Date().toISOString(),
             }, { onConflict: "name,address" }).select("id").single();
             if (gRow) await getSupabase()?.from("search_gyms").insert({ search_id: sRow.id, gym_id: gRow.id, rank: r + 1 });
           }
@@ -1272,6 +1280,7 @@ Use real gym names. Differentiate scores. Respond ONLY with valid JSON array.`;
           // Upsert gyms
           for (const g of parsed) {
             await getSupabase()?.from("gyms").upsert({
+              slug: makeSlug(g.name, g.city),
               name: g.name, type: g.type, address: g.address,
               city: g.city || null, country: g.country || null,
               description: g.description || null,
@@ -1279,7 +1288,7 @@ Use real gym names. Differentiate scores. Respond ONLY with valid JSON array.`;
               pass_notes: g.passNotes || null,
               contact_phone: g.contactPhone || null, contact_email: g.contactEmail || null,
               contact_website: g.contactWebsite || null, contact_instagram: g.contactInstagram || null,
-              scores: g.scores || null, updated_at: new Date().toISOString(),
+              scores: g.scores || null, data_source: "api", updated_at: new Date().toISOString(),
             }, { onConflict: "name,address" });
           }
         } catch {}
@@ -1567,6 +1576,7 @@ function AddStampModal({ gym, onClose, onSave, userEmail }) {
     setSaving(true);
     // Upsert gym first
     const { data: gRow } = await getSupabase()?.from("gyms").upsert({
+      slug: makeSlug(gym.name, gym.city),
       name: gym.name, type: gym.type, address: gym.address,
       city: gym.city || null, country: gym.country || null,
       description: gym.description || null,
@@ -1577,7 +1587,7 @@ function AddStampModal({ gym, onClose, onSave, userEmail }) {
       contact_email: gym.contactEmail || gym.contact_email || null,
       contact_website: gym.contactWebsite || gym.contact_website || null,
       contact_instagram: gym.contactInstagram || gym.contact_instagram || null,
-      scores: gym.scores || null, updated_at: new Date().toISOString(),
+      scores: gym.scores || null, data_source: "user", updated_at: new Date().toISOString(),
     }, { onConflict: "name,address" }).select("id").single();
     if (gRow) {
       await getSupabase()?.from("stamps").upsert({
