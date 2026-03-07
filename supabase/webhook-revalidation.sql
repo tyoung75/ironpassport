@@ -1,46 +1,42 @@
 -- ═══════════════════════════════════════════════════════════════════════════════
--- Iron Passport: Database Webhooks for On-Demand Revalidation
+-- Iron Passport: Database Webhooks for Automatic Cloudflare Pages Rebuild
 --
--- NOTE: Supabase database webhooks are configured in the Dashboard, not via SQL.
--- This file documents the webhook configuration to set up manually.
+-- When gym or city data changes in Supabase, trigger a Cloudflare Pages
+-- deploy hook to rebuild the static site with updated data.
 --
--- Dashboard path: Database → Webhooks → Create a new webhook
+-- SETUP:
+-- 1. Go to Cloudflare Pages → your project → Settings → Builds & Deployments
+-- 2. Under "Deploy Hooks", create a new hook (e.g. "supabase-data-change")
+-- 3. Copy the deploy hook URL
+-- 4. In Supabase Dashboard: Database → Webhooks → Create webhook
+--
 -- ═══════════════════════════════════════════════════════════════════════════════
 
 -- Webhook 1: Gyms table changes
 -- ─────────────────────────────────────────────────────────────────────────────
--- Name:     revalidate-gym-pages
+-- Name:     rebuild-on-gym-change
 -- Table:    gyms
 -- Events:   INSERT, UPDATE, DELETE
 -- Type:     HTTP Request
 -- Method:   POST
--- URL:      https://ironpassport.com/api/revalidate
--- Headers:
---   x-revalidation-secret: <your REVALIDATION_SECRET env var value>
---   Content-Type: application/json
---
--- The webhook payload automatically includes:
---   { table: "gyms", record: { slug, city_slug, ... }, type: "INSERT"|"UPDATE"|"DELETE" }
+-- URL:      <your Cloudflare Pages deploy hook URL>
+-- Headers:  Content-Type: application/json
 
 -- Webhook 2: Cities table changes
 -- ─────────────────────────────────────────────────────────────────────────────
--- Name:     revalidate-city-pages
+-- Name:     rebuild-on-city-change
 -- Table:    cities
 -- Events:   INSERT, UPDATE, DELETE
 -- Type:     HTTP Request
 -- Method:   POST
--- URL:      https://ironpassport.com/api/revalidate
--- Headers:
---   x-revalidation-secret: <your REVALIDATION_SECRET env var value>
---   Content-Type: application/json
---
--- The webhook payload automatically includes:
---   { table: "cities", record: { slug, ... }, type: "INSERT"|"UPDATE"|"DELETE" }
+-- URL:      <your Cloudflare Pages deploy hook URL>
+-- Headers:  Content-Type: application/json
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- Environment variable to add to Vercel:
---
---   REVALIDATION_SECRET=<generate a random secret string>
---
--- Generate one with: openssl rand -hex 32
+-- HOW IT WORKS:
+-- 1. Admin adds/edits a gym or city via the admin panel
+-- 2. Data is saved to Supabase
+-- 3. Supabase webhook fires, hitting the Cloudflare deploy hook
+-- 4. Cloudflare rebuilds the site (~1-2 minutes)
+-- 5. New/updated pages are live
 -- ═══════════════════════════════════════════════════════════════════════════════

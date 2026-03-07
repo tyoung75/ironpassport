@@ -1,9 +1,6 @@
 import { getGymBySlug, getSimilarGyms, getGymsByCity, getAllGymSlugs } from "@/lib/data";
 import GymProfileClient from "./GymProfileClient";
 
-export const revalidate = 86400;
-export const dynamicParams = true;
-
 const SITE_URL = "https://www.ironpassport.com";
 
 /**
@@ -11,6 +8,7 @@ const SITE_URL = "https://www.ironpassport.com";
  */
 export async function generateStaticParams() {
   const slugs = await getAllGymSlugs();
+  if (slugs.length === 0) return [{ gymSlug: "_placeholder" }];
   return slugs.map((slug) => ({ gymSlug: slug }));
 }
 

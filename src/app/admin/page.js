@@ -136,19 +136,6 @@ export default function AdminPage() {
       .replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
   }
 
-  async function triggerRevalidation(body) {
-    try {
-      await fetch("/api/revalidate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-revalidation-secret": "local-admin",
-        },
-        body: JSON.stringify(body),
-      });
-    } catch {}
-  }
-
   async function handleAddGym(e) {
     e.preventDefault();
     setGymFormStatus("saving");
@@ -191,7 +178,7 @@ export default function AdminPage() {
       setGymFormStatus(`Error: ${error.message}`);
     } else {
       setGymFormStatus("Gym added successfully!");
-      await triggerRevalidation({ type: "gym", slug, city_slug: citySlug });
+      // Cloudflare rebuild triggered automatically via Supabase webhook
       setGymForm({ ...gymForm, name: "", address: "", neighborhood: "", description: "", dayPassPrice: "", weekPassPrice: "", passNotes: "" });
     }
   }
@@ -214,7 +201,7 @@ export default function AdminPage() {
       setCityFormStatus(`Error: ${error.message}`);
     } else {
       setCityFormStatus("City added successfully!");
-      await triggerRevalidation({ type: "city", slug });
+      // Cloudflare rebuild triggered automatically via Supabase webhook
       setCityForm({ name: "", country: "", region: "", description: "", nearbyDestinations: "", relatedCities: "" });
     }
   }
@@ -223,7 +210,7 @@ export default function AdminPage() {
     setRankSaving(gymId);
     const { error } = await getSupabase().from("gyms").update({ scores }).eq("id", gymId);
     if (!error) {
-      await triggerRevalidation({ type: "gym", slug, city_slug: citySlug });
+      // Cloudflare rebuild triggered automatically via Supabase webhook
       setRankGyms(prev => prev.map(g => g.id === gymId ? { ...g, scores } : g));
     }
     setRankSaving(null);

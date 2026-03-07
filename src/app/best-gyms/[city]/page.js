@@ -7,12 +7,10 @@ import {
 import { GYM_CRITERIA, scoreColor } from "@/lib/city-helpers";
 import styles from "../city-page.module.css";
 
-export const revalidate = 86400;
-export const dynamicParams = true;
-
 /** Generate static params for all city pages */
 export async function generateStaticParams() {
   const slugs = await getAllCitySlugs();
+  if (slugs.length === 0) return [{ city: "_placeholder" }];
   return slugs.map((city) => ({ city }));
 }
 

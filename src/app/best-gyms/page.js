@@ -1,8 +1,6 @@
 import { getAllCities } from "@/lib/data";
 import styles from "./city-page.module.css";
 
-export const revalidate = 86400;
-
 const CURRENT_YEAR = new Date().getFullYear();
 
 export const metadata = {

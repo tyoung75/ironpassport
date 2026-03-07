@@ -1,11 +1,9 @@
 import { getCityBySlug, getAllCitySlugs } from "@/lib/data";
 import { GYM_CRITERIA, scoreColor, calcOverallScore, CURRENT_YEAR } from "@/lib/city-helpers";
 
-export const revalidate = 86400;
-export const dynamicParams = true;
-
 export async function generateStaticParams() {
   const slugs = await getAllCitySlugs();
+  if (slugs.length === 0) return [{ citySlug: "_placeholder" }];
   return slugs.map((citySlug) => ({ citySlug }));
 }
 

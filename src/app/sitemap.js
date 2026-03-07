@@ -1,5 +1,7 @@
 import { getAllGymSlugs, getAllCitySlugs } from "@/lib/data";
 
+export const dynamic = "force-static";
+
 const BASE_URL = "https://ironpassport.com";
 
 export default async function sitemap() {
