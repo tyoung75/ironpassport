@@ -27,6 +27,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS cities_updated_at_trigger ON cities;
 CREATE TRIGGER cities_updated_at_trigger
   BEFORE UPDATE ON cities
   FOR EACH ROW
@@ -60,19 +61,25 @@ CREATE INDEX IF NOT EXISTS gyms_city_slug_fk_idx ON gyms (city_slug);
 -- 3. RLS policies ─────────────────────────────────────────────────────────────
 ALTER TABLE cities ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Cities are viewable by everyone"
-  ON cities FOR SELECT
-  USING (true);
-
-CREATE POLICY "Cities are insertable by authenticated users"
-  ON cities FOR INSERT
-  WITH CHECK (true);
-
-CREATE POLICY "Cities are updatable by authenticated users"
-  ON cities FOR UPDATE
-  USING (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'cities' AND policyname = 'Cities are viewable by everyone') THEN
+    CREATE POLICY "Cities are viewable by everyone" ON cities FOR SELECT USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'cities' AND policyname = 'Cities are insertable by authenticated users') THEN
+    CREATE POLICY "Cities are insertable by authenticated users" ON cities FOR INSERT WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'cities' AND policyname = 'Cities are updatable by authenticated users') THEN
+    CREATE POLICY "Cities are updatable by authenticated users" ON cities FOR UPDATE USING (true);
+  END IF;
+END $$;
 
 -- Ensure gyms table also has public read access
-CREATE POLICY IF NOT EXISTS "Gyms are viewable by everyone"
-  ON gyms FOR SELECT
-  USING (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'gyms' AND policyname = 'Gyms are viewable by everyone'
+  ) THEN
+    CREATE POLICY "Gyms are viewable by everyone" ON gyms FOR SELECT USING (true);
+  END IF;
+END $$;
