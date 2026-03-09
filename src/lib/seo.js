@@ -5,9 +5,9 @@
 
 const SITE_URL = "https://ironpassport.com";
 const SITE_NAME = "Iron Passport";
-const DEFAULT_TITLE = "Iron Passport – Find the Best Gyms Wherever You Travel";
+const DEFAULT_TITLE = "Iron Passport: Find & Compare Gym Day Passes Worldwide";
 const DEFAULT_DESCRIPTION =
-  "Find, compare, and review gyms worldwide. AI-powered gym rankings for business trips, vacations, and adventures. Day passes, scores, and travel times.";
+  "Stop overpaying for hotel gyms. Get AI-powered rankings, real day pass prices, and reviews for the best gyms in any city. Start your search for free.";
 const OG_IMAGE = `${SITE_URL}/og-image.png`;
 
 /**
