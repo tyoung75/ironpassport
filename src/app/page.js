@@ -27,6 +27,21 @@ const FAQS = [
     answer:
       "Yes. For each ranked gym, Iron Passport shows day pass and week pass availability and pricing so you can plan your workout budget while traveling.",
   },
+  {
+    question: "What is the Iron Passport and how does it work?",
+    answer:
+      "The Iron Passport is a digital credential designed for global gym access and fitness tracking. It allows users to find, compare, and review gyms worldwide by syncing their data across our verified network of partner facilities.",
+  },
+  {
+    question: "Is the Iron Passport accepted internationally?",
+    answer:
+      "Yes, the Iron Passport is built on global standards, ensuring that your fitness credentials are recognized across partner gyms in the United States, Europe, Southeast Asia, and beyond.",
+  },
+  {
+    question: "How do I update my Iron Passport information?",
+    answer:
+      "You can update your profile instantly through our secure portal. Changes are reflected in real-time across all synced devices and partner locations.",
+  },
 ];
 
 export default function Home() {
