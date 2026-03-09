@@ -15,22 +15,30 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
-export const metadata = buildMetadata({
-  title: "Iron Passport: Find & Compare Gym Day Passes Worldwide",
-  description:
-    "Stop overpaying for hotel gyms. Get AI-powered rankings, real day pass prices, and reviews for the best gyms in any city. Start your search for free.",
-  path: "/",
-});
+export const metadata = {
+  ...buildMetadata({
+    title: "Iron Passport: Find & Compare Gym Day Passes Worldwide",
+    description:
+      "Stop overpaying for hotel gyms. Get AI-powered rankings, real day pass prices, and reviews for the best gyms in any city. Start your search for free.",
+    path: "/",
+  }),
+  manifest: "/manifest.json",
+  themeColor: "#090807",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon-32x32.png", type: "image/png", sizes: "32x32" },
+      { url: "/favicon-16x16.png", type: "image/png", sizes: "16x16" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+};
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <head>
-        <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#090807" />
-      </head>
+      <head />
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <PageTracker />
         {children}
