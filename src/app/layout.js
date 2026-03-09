@@ -16,9 +16,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = buildMetadata({
-  title: "Iron Passport – Find the Best Gyms Wherever You Travel",
+  title: "Iron Passport: Find & Compare Gym Day Passes Worldwide",
   description:
-    "Find, compare, and review gyms worldwide. AI-powered gym rankings for business trips, vacations, and adventures. Day passes, scores, and travel times.",
+    "Stop overpaying for hotel gyms. Get AI-powered rankings, real day pass prices, and reviews for the best gyms in any city. Start your search for free.",
   path: "/",
 });
 
@@ -37,7 +37,7 @@ export default function RootLayout({ children }) {
         {/* Server-rendered fallback content for SEO crawlers that don't execute JS */}
         <noscript>
           <div style={{ maxWidth: 740, margin: "0 auto", padding: "60px 20px", textAlign: "center" }}>
-            <h1>Iron Passport – Find the Best Gyms Wherever You Travel</h1>
+            <h1>Iron Passport: Find &amp; Compare Gym Day Passes Worldwide</h1>
             <p>AI-powered gym rankings for business trips, vacations, and adventures. Find gyms, discover destinations, stamp your passport, and compare the best — wherever you travel.</p>
             <h2>Features</h2>
             <ul style={{ listStyle: "none", padding: 0 }}>
