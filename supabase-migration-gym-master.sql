@@ -69,7 +69,8 @@ CREATE INDEX IF NOT EXISTS gyms_city_slug_idx ON gyms (city, slug);
 CREATE INDEX IF NOT EXISTS gyms_updated_at_idx ON gyms (updated_at);
 
 -- 6. View: stale gyms (not updated in 90 days) ─────────────────────────────
-CREATE OR REPLACE VIEW stale_gyms AS
+CREATE OR REPLACE VIEW stale_gyms
+  WITH (security_invoker = true) AS
 SELECT id, slug, name, city, country, updated_at, verified_at,
        NOW() - updated_at AS age,
        CASE
